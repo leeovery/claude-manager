@@ -3,10 +3,12 @@
 set -euo pipefail
 
 # Get the script directory
-readonly script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" > /dev/null 2>&1 && pwd)"
+script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" > /dev/null 2>&1 && pwd)"
+readonly script_dir
 
 # Get the Git repository root directory
-readonly dir="$(git rev-parse --show-toplevel 2> /dev/null || echo "$script_dir")"
+dir="$(git rev-parse --show-toplevel 2> /dev/null || echo "$script_dir")"
+readonly dir
 
 cd "$dir" || exit
 

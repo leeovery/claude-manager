@@ -79,6 +79,15 @@ composer require --dev $VENDOR_NAME/$PACKAGE_NAME
 This package provides skills and commands for Claude Code.
 EOF
 
+# Create release.txt
+cat > "$PACKAGE_DIR/release.txt" <<EOF
+0.0.1
+EOF
+
+# Copy release script
+cp "$SCRIPT_DIR/release" "$PACKAGE_DIR/release"
+chmod +x "$PACKAGE_DIR/release"
+
 # Download skill-creator
 echo "Installing skill-creator..."
 
