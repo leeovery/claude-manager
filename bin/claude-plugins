@@ -27,7 +27,14 @@ use LeeOvery\ClaudeManager\Console\InstallCommand;
 use LeeOvery\ClaudeManager\Console\ListCommand;
 use Symfony\Component\Console\Application;
 
-$application = new Application('Claude Plugins', '1.0.0');
+// Read version from release.txt
+$version = '1.0.0'; // fallback version
+$releaseFile = __DIR__.'/../release.txt';
+if (file_exists($releaseFile)) {
+    $version = trim(file_get_contents($releaseFile));
+}
+
+$application = new Application('Claude Plugins', $version);
 
 $application->add(new ListCommand());
 $application->add(new InstallCommand());
