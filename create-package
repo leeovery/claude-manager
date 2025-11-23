@@ -81,7 +81,7 @@ EOF
 
 # Create release.txt
 cat > "$PACKAGE_DIR/release.txt" <<EOF
-0.0.1
+0.0.0
 EOF
 
 # Copy release script
