@@ -93,6 +93,16 @@ echo "Installing skill-creator..."
 TEMP_DIR=$(mktemp -d)
 curl -sL "https://github.com/anthropics/skills/archive/refs/heads/main.tar.gz" | tar -xz -C "$TEMP_DIR"
 cp -r "$TEMP_DIR/skills-main/skill-creator" "$PACKAGE_DIR/.claude/skills/"
+
+# Patch SKILL.md to add note about not packaging for claude-manager
+SKILL_FILE="$PACKAGE_DIR/.claude/skills/skill-creator/SKILL.md"
+if [ -f "$SKILL_FILE" ]; then
+    # Add note after the packaging section
+    sed -i '/^### Step 5: Packaging a Skill$/a\
+\
+**Note for claude-manager packages:** When creating skills for claude-manager packages, you do NOT need to package the skill as a .skill file. The skills are copied directly into the package structure. Skip the packaging step and proceed directly to testing and iteration.' "$SKILL_FILE"
+fi
+
 rm -rf "$TEMP_DIR"
 
 # Initialize git
