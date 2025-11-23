@@ -73,24 +73,6 @@ get_current_version() {
 perform_release() {
     local new_version=$1
 
-    if [ "$(git status --porcelain)" ]; then
-        echo "Error: The git working directory is dirty (has uncommitted changes)."
-        echo "Please commit or stash your changes and run the script again to release."
-        exit 1
-    fi
-
-    # Sync tags with remote
-    echo "Syncing tags with remote..."
-    git fetch --tags --prune
-    git push --tags
-
-    # Check if tag already exists (locally or remotely)
-    if git rev-parse "v${new_version}" >/dev/null 2>&1; then
-        echo "Error: Tag v${new_version} already exists."
-        echo "Use a different version increment option."
-        exit 1
-    fi
-
     # Create annotated tag
     git tag -a "v${new_version}" -m "Release v${new_version}"
 
@@ -125,11 +107,30 @@ main() {
         shift
     done
 
+    # Check for dirty working directory
+    if [ "$(git status --porcelain)" ]; then
+        echo "Error: The git working directory is dirty (has uncommitted changes)."
+        echo "Please commit or stash your changes and run the script again to release."
+        exit 1
+    fi
+
+    # Sync tags with remote
+    echo "Syncing tags with remote..."
+    git fetch --tags --prune --quiet
+    git push --tags --quiet 2>/dev/null || true
+
     local current_version
     current_version=$(get_current_version)
 
     local new_version
     new_version=$(semver_increment "${current_version}" "${semver_type}")
+
+    # Check if tag already exists (locally or remotely)
+    if git rev-parse "v${new_version}" >/dev/null 2>&1; then
+        echo "Error: Tag v${new_version} already exists."
+        echo "Use a different version increment option (-M for major, -m for minor, -p for patch)."
+        exit 1
+    fi
 
     echo -e "\nRelease"
     echo " - this will be a ${semver_type} increment"
