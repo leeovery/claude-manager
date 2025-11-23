@@ -37,20 +37,22 @@ class PluginManager
             $this->files->mkdir($this->claudeDir, 0755);
         }
 
+        $installedItems = [];
+
         // Auto-discover and install skills
         $skillsPath = $packagePath.'/skills';
         if ($this->files->exists($skillsPath)) {
-            $this->autoDiscoverSkills($skillsPath);
+            $installedItems = array_merge($installedItems, $this->autoDiscoverSkills($skillsPath));
         }
 
         // Auto-discover and install commands
         $commandsPath = $packagePath.'/commands';
         if ($this->files->exists($commandsPath)) {
-            $this->autoDiscoverCommands($commandsPath);
+            $installedItems = array_merge($installedItems, $this->autoDiscoverCommands($commandsPath));
         }
 
-        // Update gitignore
-        $this->updateGitignore();
+        // Update gitignore with specific installed items
+        $this->updateGitignore($installedItems);
     }
 
     public function list(): array
@@ -108,14 +110,15 @@ class PluginManager
         return $plugins;
     }
 
-    private function autoDiscoverSkills(string $skillsPath): void
+    private function autoDiscoverSkills(string $skillsPath): array
     {
-        $this->symlinkItems($skillsPath, 'skills', fn ($item) => $item->isDir());
+        return $this->symlinkItems($skillsPath, 'skills', fn ($item) => $item->isDir());
     }
 
-    private function symlinkItems(string $sourcePath, string $type, callable $filter): void
+    private function symlinkItems(string $sourcePath, string $type, callable $filter): array
     {
         $targetDir = $this->claudeDir.'/'.$type;
+        $installed = [];
 
         if (! $this->files->exists($targetDir)) {
             $this->files->mkdir($targetDir, 0755);
@@ -140,22 +143,25 @@ class PluginManager
             }
 
             $this->files->symlink($source, $target);
+            $installed[] = ['type' => $type, 'name' => $item->getFilename()];
         }
+
+        return $installed;
     }
 
-    private function autoDiscoverCommands(string $commandsPath): void
+    private function autoDiscoverCommands(string $commandsPath): array
     {
-        $this->symlinkItems($commandsPath, 'commands', fn ($item) => $item->isFile());
+        return $this->symlinkItems($commandsPath, 'commands', fn ($item) => $item->isFile());
     }
 
-    private function updateGitignore(): void
+    private function updateGitignore(array $installedItems): void
     {
+        if (empty($installedItems)) {
+            return;
+        }
+
         $gitignorePath = dirname($this->vendorDir).'/.gitignore';
         $marker = '# Claude plugins (managed by Composer)';
-        $patterns = [
-            '/.claude/skills/*/',
-            '/.claude/commands/*.md',
-        ];
 
         // Read existing content or start fresh
         $content = '';
@@ -176,25 +182,43 @@ class PluginManager
             if (str_contains($content, "\r\n")) {
                 $lineEnding = "\r\n";
             }
+        }
 
-            // Check if our section exists
-            if (str_contains($content, $marker)) {
-                return; // Already added
+        // Build patterns for installed items
+        $patterns = [];
+        foreach ($installedItems as $item) {
+            if ($item['type'] === 'skills') {
+                $patterns[] = '/.claude/skills/'.$item['name'].'/';
+            } elseif ($item['type'] === 'commands') {
+                $patterns[] = '/.claude/commands/'.$item['name'];
             }
         }
 
-        // Build our section
-        $section = $lineEnding.$marker.$lineEnding;
+        // Check if patterns already exist
+        $newPatterns = [];
         foreach ($patterns as $pattern) {
-            $section .= $pattern.$lineEnding;
+            if (! str_contains($content, $pattern)) {
+                $newPatterns[] = $pattern;
+            }
         }
 
-        // Append to existing content
-        $newContent = $content.$section;
+        if (empty($newPatterns)) {
+            return; // Nothing to add
+        }
+
+        // Add marker if not present
+        if (! str_contains($content, $marker)) {
+            $content .= $lineEnding.$marker.$lineEnding;
+        }
+
+        // Append new patterns
+        foreach ($newPatterns as $pattern) {
+            $content .= $pattern.$lineEnding;
+        }
 
         // Write back
         try {
-            file_put_contents($gitignorePath, $newContent);
+            file_put_contents($gitignorePath, $content);
         } catch (Exception $e) {
             $this->io?->write(
                 '<warning>Could not update .gitignore: '.$e->getMessage().'</warning>'
