@@ -1,0 +1,35 @@
+#!/usr/bin/env php
+<?php
+
+declare(strict_types=1);
+
+// Find autoload.php
+$autoloadPaths = [
+    __DIR__.'/../vendor/autoload.php',
+    __DIR__.'/../../../autoload.php',
+];
+
+$autoloadFound = false;
+foreach ($autoloadPaths as $path) {
+    if (file_exists($path)) {
+        require $path;
+        $autoloadFound = true;
+        break;
+    }
+}
+
+if (! $autoloadFound) {
+    fwrite(STDERR, 'Error: Could not find autoload.php'.PHP_EOL);
+    exit(1);
+}
+
+use LeeOvery\ClaudeManager\Console\InstallCommand;
+use LeeOvery\ClaudeManager\Console\ListCommand;
+use Symfony\Component\Console\Application;
+
+$application = new Application('Claude Plugins', '1.0.0');
+
+$application->add(new ListCommand());
+$application->add(new InstallCommand());
+
+$application->run();
