@@ -123,6 +123,10 @@ your-project/
 ## Available Plugins
 
 - `leeovery/claude-laravel` - Laravel conventions, Eloquent, and Pest testing
+- `leeovery/claude-vue` - Vue.js composition API and Pinia state management
+- `leeovery/claude-kubernetes` - Kubernetes and Helm deployment patterns
+
+More plugins coming soon!
 
 ## Troubleshooting
 
