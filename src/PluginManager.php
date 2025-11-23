@@ -47,9 +47,6 @@ class PluginManager
         if (isset($extra['commands'])) {
             $this->installCommands($packagePath, $extra['commands']);
         }
-
-        // Update gitignore
-        $this->updateGitignore();
     }
 
     public function list(): array
@@ -105,6 +102,75 @@ class PluginManager
         }
 
         return $plugins;
+    }
+
+    public function updateGitignore(): void
+    {
+        $gitignorePath = dirname($this->vendorDir).'/.gitignore';
+        $startMarker = '# Claude plugins (managed by Composer) - START';
+        $endMarker = '# Claude plugins (managed by Composer) - END';
+
+        // Scan for all symlinked skills and commands
+        $managedItems = $this->getManagedSymlinks();
+
+        if (count($managedItems) === 0) {
+            // No managed items, remove section if it exists
+            $this->removeGitignoreSection($gitignorePath, $startMarker, $endMarker);
+
+            return;
+        }
+
+        // Detect line endings
+        $lineEnding = "\n";
+        if (file_exists($gitignorePath)) {
+            if (! is_readable($gitignorePath)) {
+                if ($this->io) {
+                    $this->io->write(
+                        '<warning>Could not update .gitignore (file not readable)</warning>'
+                    );
+                }
+
+                return;
+            }
+
+            $content = file_get_contents($gitignorePath);
+            if (str_contains($content, "\r\n")) {
+                $lineEnding = "\r\n";
+            }
+        } else {
+            $content = '';
+        }
+
+        // Build the managed section
+        $section = $startMarker.$lineEnding;
+        foreach ($managedItems as $item) {
+            $section .= $item.$lineEnding;
+        }
+        $section .= $endMarker;
+
+        // Update or add the section
+        if (str_contains($content, $startMarker)) {
+            // Replace existing section
+            $pattern = '/'.preg_quote($startMarker, '/').'.*?'.preg_quote($endMarker, '/').'/s';
+            $newContent = preg_replace($pattern, $section, $content);
+        } else {
+            // Add new section
+            if (! empty($content) && ! str_ends_with($content, "\n") && ! str_ends_with($content, "\r\n")) {
+                $content .= $lineEnding;
+            }
+            $newContent = $content.$lineEnding.$section.$lineEnding;
+        }
+
+        // Write back
+        try {
+            file_put_contents($gitignorePath, $newContent);
+        } catch (Exception $e) {
+            if ($this->io) {
+                $this->io->write(
+                    '<warning>Could not update .gitignore: '.$e->getMessage().'</warning>'
+                );
+            }
+        }
     }
 
     private function installSkills(string $packagePath, array $skills): void
@@ -183,53 +249,63 @@ class PluginManager
         }
     }
 
-    private function updateGitignore(): void
+    private function getManagedSymlinks(): array
     {
-        $gitignorePath = dirname($this->vendorDir).'/.gitignore';
-        $marker = '# Claude plugins (managed by Composer)';
-        $patterns = [
-            '/.claude/skills/*/',
-            '/.claude/commands/*.md',
-        ];
+        $managedItems = [];
 
-        // Read existing content or start fresh
-        $content = '';
-        $lineEnding = "\n";
+        if (! $this->files->exists($this->claudeDir)) {
+            return $managedItems;
+        }
 
-        if (file_exists($gitignorePath)) {
-            if (! is_readable($gitignorePath)) {
-                if ($this->io) {
-                    $this->io->write(
-                        '<warning>Could not update .gitignore (file not readable)</warning>'
-                    );
+        // Find symlinked skills
+        if ($this->files->exists($this->claudeDir.'/skills')) {
+            $skillsIterator = new DirectoryIterator($this->claudeDir.'/skills');
+
+            foreach ($skillsIterator as $item) {
+                if ($item->isDot()) {
+                    continue;
                 }
 
-                return;
-            }
-
-            $content = file_get_contents($gitignorePath);
-
-            // Detect line endings
-            if (str_contains($content, "\r\n")) {
-                $lineEnding = "\r\n";
-            }
-
-            // Check if our section exists
-            if (str_contains($content, $marker)) {
-                return; // Already added
+                if (is_link($item->getPathname())) {
+                    $managedItems[] = '/.claude/skills/'.$item->getFilename();
+                }
             }
         }
 
-        // Build our section
-        $section = $lineEnding.$marker.$lineEnding;
-        foreach ($patterns as $pattern) {
-            $section .= $pattern.$lineEnding;
+        // Find symlinked commands
+        if ($this->files->exists($this->claudeDir.'/commands')) {
+            $commandsIterator = new DirectoryIterator($this->claudeDir.'/commands');
+
+            foreach ($commandsIterator as $item) {
+                if ($item->isDot() || ! $item->isFile()) {
+                    continue;
+                }
+
+                if (is_link($item->getPathname())) {
+                    $managedItems[] = '/.claude/commands/'.$item->getFilename();
+                }
+            }
         }
 
-        // Append to existing content
-        $newContent = $content.$section;
+        return $managedItems;
+    }
 
-        // Write back
+    private function removeGitignoreSection(string $gitignorePath, string $startMarker, string $endMarker): void
+    {
+        if (! file_exists($gitignorePath)) {
+            return;
+        }
+
+        $content = file_get_contents($gitignorePath);
+
+        if (! str_contains($content, $startMarker)) {
+            return;
+        }
+
+        // Remove the section including surrounding blank lines
+        $pattern = '/\n*'.preg_quote($startMarker, '/').'.*?'.preg_quote($endMarker, '/').'\n*/s';
+        $newContent = preg_replace($pattern, "\n", $content);
+
         try {
             file_put_contents($gitignorePath, $newContent);
         } catch (Exception $e) {

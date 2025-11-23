@@ -53,18 +53,29 @@ The post-update hook automatically reinstalls symlinks.
 
 ## Automatic Gitignore Management
 
-The manager automatically updates your project's `.gitignore` file to exclude symlinked plugins while preserving custom skills and commands. The following patterns are added:
+The manager automatically updates your project's `.gitignore` file to exclude **only** the symlinked plugins installed by the manager, while preserving custom skills and commands you create yourself.
+
+After installing plugins, a managed section is added to `.gitignore`:
 
 ```
-# Claude plugins (managed by Composer)
-/.claude/skills/*/
-/.claude/commands/*.md
+# Claude plugins (managed by Composer) - START
+/.claude/skills/laravel-conventions
+/.claude/skills/eloquent
+/.claude/commands/review-migration.md
+/.claude/commands/generate-test.md
+# Claude plugins (managed by Composer) - END
 ```
 
-This ensures:
-- Symlinked plugins from vendor packages are ignored
-- Custom/local skills and commands can still be committed
-- The `.claude/` directory itself remains in version control
+**Key features:**
+- **Specific entries only**: Only symlinked plugins are ignored, not all skills/commands
+- **Auto-sync**: The section is automatically updated when plugins are added or removed
+- **Custom content safe**: Your own skills and commands in `.claude/` can still be committed
+- **Clean removal**: If all plugins are removed, the section is automatically deleted
+
+This approach ensures that:
+- Managed plugins from vendor packages don't clutter your repository
+- Custom/local skills and commands remain in version control
+- The `.gitignore` stays clean and accurate
 
 ## Creating Plugins
 

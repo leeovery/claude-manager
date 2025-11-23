@@ -79,5 +79,8 @@ class ComposerPlugin implements EventSubscriberInterface, PluginInterface
         } else {
             $this->io->write('<comment>No Claude plugins found.</comment>');
         }
+
+        // Update .gitignore with currently installed symlinks
+        $manager->updateGitignore();
     }
 }
