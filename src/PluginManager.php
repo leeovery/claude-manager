@@ -31,21 +31,22 @@ class PluginManager
     public function installFromPackage(PackageInterface $package): void
     {
         $packagePath = $this->vendorDir.'/'.$package->getName();
-        $extra = $package->getExtra()['claude-plugin'] ?? [];
 
         // Create .claude directory if it doesn't exist
         if (! $this->files->exists($this->claudeDir)) {
             $this->files->mkdir($this->claudeDir, 0755);
         }
 
-        // Install skills
-        if (isset($extra['skills'])) {
-            $this->installSkills($packagePath, $extra['skills']);
+        // Auto-discover and install skills
+        $skillsPath = $packagePath.'/skills';
+        if ($this->files->exists($skillsPath)) {
+            $this->autoDiscoverSkills($skillsPath);
         }
 
-        // Install commands
-        if (isset($extra['commands'])) {
-            $this->installCommands($packagePath, $extra['commands']);
+        // Auto-discover and install commands
+        $commandsPath = $packagePath.'/commands';
+        if ($this->files->exists($commandsPath)) {
+            $this->autoDiscoverCommands($commandsPath);
         }
 
         // Update gitignore
@@ -107,32 +108,29 @@ class PluginManager
         return $plugins;
     }
 
-    private function installSkills(string $packagePath, array $skills): void
+    private function autoDiscoverSkills(string $skillsPath): void
     {
-        $skillsDir = $this->claudeDir.'/skills';
+        $this->symlinkItems($skillsPath, 'skills', fn ($item) => $item->isDir());
+    }
 
-        if (! $this->files->exists($skillsDir)) {
-            $this->files->mkdir($skillsDir, 0755);
+    private function symlinkItems(string $sourcePath, string $type, callable $filter): void
+    {
+        $targetDir = $this->claudeDir.'/'.$type;
+
+        if (! $this->files->exists($targetDir)) {
+            $this->files->mkdir($targetDir, 0755);
         }
 
-        foreach ($skills as $skill) {
-            $source = $packagePath.'/'.$skill;
+        $iterator = new DirectoryIterator($sourcePath);
 
-            if (! $this->files->exists($source)) {
-                if ($this->io) {
-                    $this->io->write(
-                        sprintf('    <warning>Skill not found: %s</warning>', $skill)
-                    );
-                }
-
+        foreach ($iterator as $item) {
+            if ($item->isDot() || ! $filter($item)) {
                 continue;
             }
 
-            // Get the skill directory name (e.g., 'laravel-conventions')
-            $skillName = basename($skill);
-            $target = $skillsDir.'/'.$skillName;
+            $source = $item->getPathname();
+            $target = $targetDir.'/'.$item->getFilename();
 
-            // Remove existing symlink/directory
             if ($this->files->exists($target)) {
                 if (is_link($target)) {
                     unlink($target);
@@ -141,46 +139,13 @@ class PluginManager
                 }
             }
 
-            // Create symlink
             $this->files->symlink($source, $target);
         }
     }
 
-    private function installCommands(string $packagePath, array $commands): void
+    private function autoDiscoverCommands(string $commandsPath): void
     {
-        $commandsDir = $this->claudeDir.'/commands';
-
-        if (! $this->files->exists($commandsDir)) {
-            $this->files->mkdir($commandsDir, 0755);
-        }
-
-        foreach ($commands as $command) {
-            $source = $packagePath.'/'.$command;
-
-            if (! $this->files->exists($source)) {
-                if ($this->io) {
-                    $this->io->write(
-                        sprintf('    <warning>Command not found: %s</warning>', $command)
-                    );
-                }
-
-                continue;
-            }
-
-            $target = $commandsDir.'/'.basename($command);
-
-            // Remove existing symlink/file
-            if ($this->files->exists($target)) {
-                if (is_link($target)) {
-                    unlink($target);
-                } else {
-                    $this->files->remove($target);
-                }
-            }
-
-            // Create symlink
-            $this->files->symlink($source, $target);
-        }
+        $this->symlinkItems($commandsPath, 'commands', fn ($item) => $item->isFile());
     }
 
     private function updateGitignore(): void
@@ -198,11 +163,9 @@ class PluginManager
 
         if (file_exists($gitignorePath)) {
             if (! is_readable($gitignorePath)) {
-                if ($this->io) {
-                    $this->io->write(
-                        '<warning>Could not update .gitignore (file not readable)</warning>'
-                    );
-                }
+                $this->io?->write(
+                    '<warning>Could not update .gitignore (file not readable)</warning>'
+                );
 
                 return;
             }
@@ -233,11 +196,9 @@ class PluginManager
         try {
             file_put_contents($gitignorePath, $newContent);
         } catch (Exception $e) {
-            if ($this->io) {
-                $this->io->write(
-                    '<warning>Could not update .gitignore: '.$e->getMessage().'</warning>'
-                );
-            }
+            $this->io?->write(
+                '<warning>Could not update .gitignore: '.$e->getMessage().'</warning>'
+            );
         }
     }
 }

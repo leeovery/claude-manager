@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace LeeOvery\ClaudeManager\Console;
 
 use LeeOvery\ClaudeManager\PluginManager;
+use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Helper\Table;
 use Symfony\Component\Console\Input\InputInterface;
@@ -14,15 +15,15 @@ use function count;
 use function getcwd;
 use function sprintf;
 
+#[AsCommand(
+    name: 'list',
+    description: 'List installed Claude Code plugins'
+)]
 class ListCommand extends Command
 {
-    protected static $defaultName = 'list-plugins';
-
     protected function configure(): void
     {
-        $this
-            ->setDescription('List installed Claude Code plugins')
-            ->setHelp('Shows all installed skills and commands');
+        $this->setHelp('Shows all installed skills and commands');
     }
 
     protected function execute(InputInterface $input, OutputInterface $output): int

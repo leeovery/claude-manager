@@ -42,6 +42,7 @@ class ComposerPlugin implements EventSubscriberInterface, PluginInterface
 
     public function installPlugins(Event $event): void
     {
+        $this->io->write('');
         $this->io->write('<info>Installing Claude Code plugins...</info>');
 
         $vendorDir = $this->composer->getConfig()->get('vendor-dir');
@@ -55,29 +56,44 @@ class ComposerPlugin implements EventSubscriberInterface, PluginInterface
             ->getLocalRepository()
             ->getPackages();
 
-        $installedCount = 0;
-
+        $pluginPackages = [];
         foreach ($packages as $package) {
             if ($package->getType() === 'claude-plugin') {
-                $this->io->write(
-                    sprintf('  <comment>→</comment> Installing <info>%s</info>', $package->getName())
-                );
-
-                $manager->installFromPackage($package);
-                $installedCount++;
+                $pluginPackages[] = $package;
             }
         }
 
-        if ($installedCount > 0) {
-            $this->io->write(
-                sprintf(
-                    '<info>✓ Installed %d Claude plugin%s successfully!</info>',
-                    $installedCount,
-                    $installedCount === 1 ? '' : 's'
-                )
-            );
-        } else {
-            $this->io->write('<comment>No Claude plugins found.</comment>');
+        if (empty($pluginPackages)) {
+            $this->io->write('<comment>No Claude plugins found</comment>');
+            $this->io->write('');
+
+            return;
         }
+
+        // Find longest package name for alignment
+        $maxLength = 0;
+        foreach ($pluginPackages as $package) {
+            $maxLength = max($maxLength, mb_strlen($package->getName()));
+        }
+
+        // Install each plugin
+        foreach ($pluginPackages as $package) {
+            $name = mb_str_pad($package->getName(), $maxLength);
+            $this->io->write(
+                sprintf('  <comment>→</comment> <info>%s</info>', $name)
+            );
+
+            $manager->installFromPackage($package);
+        }
+
+        $this->io->write(
+            sprintf(
+                '<info>✓ Installed %d plugin%s</info>',
+                count($pluginPackages),
+                count($pluginPackages) === 1 ? '' : 's'
+            )
+        );
+
+        $this->io->write('');
     }
 }

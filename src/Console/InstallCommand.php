@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace LeeOvery\ClaudeManager\Console;
 
+use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
@@ -11,15 +12,15 @@ use Symfony\Component\Process\Process;
 
 use function getcwd;
 
+#[AsCommand(
+    name: 'install',
+    description: 'Install Claude Code plugins'
+)]
 class InstallCommand extends Command
 {
-    protected static $defaultName = 'install';
-
     protected function configure(): void
     {
-        $this
-            ->setDescription('Install Claude Code plugins')
-            ->setHelp('Manually trigger plugin installation (usually runs automatically via Composer hooks)');
+        $this->setHelp('Manually trigger plugin installation (usually runs automatically via Composer hooks)');
     }
 
     protected function execute(InputInterface $input, OutputInterface $output): int

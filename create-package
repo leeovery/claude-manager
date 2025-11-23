@@ -1,0 +1,99 @@
+#!/usr/bin/env bash
+
+set -e
+
+if [ -z "$1" ]; then
+    echo "Usage: create-package <package-name>"
+    exit 1
+fi
+
+PACKAGE_NAME="$1"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PACKAGE_DIR="$SCRIPT_DIR/../$PACKAGE_NAME"
+VENDOR_NAME="leeovery"
+CLASS_NAME=$(echo "$PACKAGE_NAME" | sed -r 's/(^|-)(\w)/\U\2/g')
+
+if [ -d "$PACKAGE_DIR" ]; then
+    echo "Error: Directory $PACKAGE_DIR already exists"
+    exit 1
+fi
+
+echo "Creating package: $PACKAGE_NAME"
+
+# Create directory structure
+mkdir -p "$PACKAGE_DIR/skills"
+mkdir -p "$PACKAGE_DIR/commands"
+mkdir -p "$PACKAGE_DIR/.claude/skills"
+
+touch "$PACKAGE_DIR/skills/.gitkeep"
+touch "$PACKAGE_DIR/commands/.gitkeep"
+
+# Create composer.json
+cat > "$PACKAGE_DIR/composer.json" <<EOF
+{
+    "name": "$VENDOR_NAME/$PACKAGE_NAME",
+    "description": "Claude Code plugin: $PACKAGE_NAME",
+    "type": "claude-plugin",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Lee Overy",
+            "email": "me@leeovery.com"
+        }
+    ],
+    "require": {
+        "php": "^8.2",
+        "leeovery/claude-manager": "^1.0"
+    },
+    "config": {
+        "allow-plugins": {
+            "leeovery/claude-manager": true
+        }
+    }
+}
+EOF
+
+# Create .gitignore
+cat > "$PACKAGE_DIR/.gitignore" <<EOF
+/vendor/
+composer.lock
+.DS_Store
+.idea/
+.vscode/
+EOF
+
+# Create README.md
+cat > "$PACKAGE_DIR/README.md" <<EOF
+# $PACKAGE_NAME
+
+Claude Code plugin package.
+
+## Installation
+
+\`\`\`bash
+composer require --dev $VENDOR_NAME/$PACKAGE_NAME
+\`\`\`
+
+## Usage
+
+This package provides skills and commands for Claude Code.
+EOF
+
+# Download skill-creator
+echo "Installing skill-creator..."
+
+TEMP_DIR=$(mktemp -d)
+curl -sL "https://github.com/anthropics/skills/archive/refs/heads/main.tar.gz" | tar -xz -C "$TEMP_DIR"
+cp -r "$TEMP_DIR/skills-main/skill-creator" "$PACKAGE_DIR/.claude/skills/"
+rm -rf "$TEMP_DIR"
+
+# Initialize git
+cd "$PACKAGE_DIR"
+git init -q
+
+echo ""
+echo "✓ Package created successfully at: $PACKAGE_DIR"
+echo ""
+echo "Next steps:"
+echo "  cd ../$PACKAGE_NAME"
+echo "  composer install"
