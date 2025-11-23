@@ -58,30 +58,30 @@ semver_increment() {
 }
 
 get_current_version() {
-    # Get the latest tag, fallback to 0.0.0
-    local latest_tag
-    latest_tag=$(git describe --tags --abbrev=0 2>/dev/null | sed 's/^v//' || echo "0.0.0")
-
-    # Ensure it's a valid 3-part version
-    if [[ ! "$latest_tag" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-        latest_tag="0.0.0"
-    fi
-
-    echo "$latest_tag"
+    # Read version from release.txt
+    local version
+    version=$(cat release.txt | sed 's/^v//')
+    echo "$version"
 }
 
 perform_release() {
     local new_version=$1
 
+    # Update release.txt with new version
+    echo "${new_version}" > release.txt
+
+    # Commit release.txt
+    git add release.txt
+    git commit -m "🔖 Release v${new_version}"
+
     # Create annotated tag
     git tag -a "v${new_version}" -m "Release v${new_version}"
 
-    # Push tag
-    git push origin "v${new_version}"
+    # Push commit and tag
+    git push origin HEAD "v${new_version}"
 
     echo -e "\n"
     echo "✅ Released v${new_version}"
-    echo "🚀 GitHub Actions will now update the Homebrew formula automatically"
 }
 
 main() {
@@ -125,13 +125,6 @@ main() {
     local new_version
     new_version=$(semver_increment "${current_version}" "${semver_type}")
 
-    # Check if tag already exists (locally or remotely)
-    if git rev-parse "v${new_version}" >/dev/null 2>&1; then
-        echo "Error: Tag v${new_version} already exists."
-        echo "Use a different version increment option (-M for major, -m for minor, -p for patch)."
-        exit 1
-    fi
-
     echo -e "\nRelease"
     echo " - this will be a ${semver_type} increment"
     echo " - the current version is v${current_version}"
@@ -141,8 +134,10 @@ main() {
         echo -e "\nDRY RUN: No changes will be made."
     else
         echo -e "\nThis will:"
-        echo " 1. Create git tag v${new_version}"
-        echo -e " 2. Push tag and trigger GitHub release automation\n"
+        echo " 1. Update release.txt to ${new_version}"
+        echo " 2. Commit release.txt"
+        echo " 3. Create git tag v${new_version}"
+        echo -e " 4. Push commit and tag\n"
 
         echo -n "Proceed? [Y/n] "
         read -r perform_update
