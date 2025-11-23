@@ -120,15 +120,21 @@ class PluginManager
         $targetDir = $this->claudeDir.'/'.$type;
         $installed = [];
 
-        if (! $this->files->exists($targetDir)) {
-            $this->files->mkdir($targetDir, 0755);
-        }
-
         $iterator = new DirectoryIterator($sourcePath);
 
         foreach ($iterator as $item) {
             if ($item->isDot() || ! $filter($item)) {
                 continue;
+            }
+
+            // Skip .gitkeep files
+            if ($item->getFilename() === '.gitkeep') {
+                continue;
+            }
+
+            // Create target directory only if we have items to install
+            if (! $this->files->exists($targetDir)) {
+                $this->files->mkdir($targetDir, 0755);
             }
 
             $source = $item->getPathname();
