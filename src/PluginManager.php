@@ -188,7 +188,7 @@ class PluginManager
         $patterns = [];
         foreach ($installedItems as $item) {
             if ($item['type'] === 'skills') {
-                $patterns[] = '/.claude/skills/'.$item['name'].'/';
+                $patterns[] = '/.claude/skills/'.$item['name'];
             } elseif ($item['type'] === 'commands') {
                 $patterns[] = '/.claude/commands/'.$item['name'];
             }
