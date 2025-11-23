@@ -114,11 +114,6 @@ main() {
         exit 1
     fi
 
-    # Sync tags with remote
-    echo "Syncing tags with remote..."
-    git fetch --tags --prune --quiet
-    git push --tags --quiet 2>/dev/null || true
-
     local current_version
     current_version=$(get_current_version)
 
