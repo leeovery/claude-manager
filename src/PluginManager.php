@@ -37,6 +37,9 @@ class PluginManager
             $this->files->mkdir($this->claudeDir, 0755);
         }
 
+        // Clean up old symlinks for this package before installing new ones
+        $this->cleanupPackageSymlinks($package->getName());
+
         $installedItems = [];
 
         // Auto-discover and install skills
@@ -52,7 +55,7 @@ class PluginManager
         }
 
         // Update gitignore with specific installed items
-        $this->updateGitignore($installedItems);
+        $this->updateGitignore($package->getName(), $installedItems);
     }
 
     public function list(): array
@@ -110,6 +113,42 @@ class PluginManager
         return $plugins;
     }
 
+    private function cleanupPackageSymlinks(string $packageName): void
+    {
+        $types = ['skills', 'commands'];
+
+        foreach ($types as $type) {
+            $dir = $this->claudeDir.'/'.$type;
+
+            if (! $this->files->exists($dir)) {
+                continue;
+            }
+
+            $iterator = new DirectoryIterator($dir);
+
+            foreach ($iterator as $item) {
+                if ($item->isDot()) {
+                    continue;
+                }
+
+                $path = $item->getPathname();
+
+                // Only process symlinks
+                if (! is_link($path)) {
+                    continue;
+                }
+
+                // Get the symlink target
+                $target = readlink($path);
+
+                // If the target points to this package's vendor directory, remove it
+                if ($target && str_contains($target, $this->vendorDir.'/'.$packageName.'/')) {
+                    unlink($path);
+                }
+            }
+        }
+    }
+
     private function autoDiscoverSkills(string $skillsPath): array
     {
         return $this->symlinkItems($skillsPath, 'skills', fn ($item) => $item->isDir());
@@ -160,14 +199,11 @@ class PluginManager
         return $this->symlinkItems($commandsPath, 'commands', fn ($item) => $item->isFile());
     }
 
-    private function updateGitignore(array $installedItems): void
+    private function updateGitignore(string $packageName, array $installedItems): void
     {
-        if (empty($installedItems)) {
-            return;
-        }
-
         $gitignorePath = dirname($this->vendorDir).'/.gitignore';
-        $marker = '# Claude plugins (managed by Composer)';
+        $startMarker = "# Claude plugins: {$packageName} (start)";
+        $endMarker = "# Claude plugins: {$packageName} (end)";
 
         // Read existing content or start fresh
         $content = '';
@@ -188,6 +224,22 @@ class PluginManager
             if (str_contains($content, "\r\n")) {
                 $lineEnding = "\r\n";
             }
+
+            // Remove existing section for this package
+            $content = $this->removeGitignoreSection($content, $startMarker, $endMarker, $lineEnding);
+        }
+
+        // If there are no items to install, we're done (cleanup only)
+        if (empty($installedItems)) {
+            try {
+                file_put_contents($gitignorePath, $content);
+            } catch (Exception $e) {
+                $this->io?->write(
+                    '<warning>Could not update .gitignore: '.$e->getMessage().'</warning>'
+                );
+            }
+
+            return;
         }
 
         // Build patterns for installed items
@@ -200,27 +252,16 @@ class PluginManager
             }
         }
 
-        // Check if patterns already exist
-        $newPatterns = [];
+        // Add new section at the end
+        if (! empty($content) && ! str_ends_with($content, $lineEnding)) {
+            $content .= $lineEnding;
+        }
+
+        $content .= $lineEnding.$startMarker.$lineEnding;
         foreach ($patterns as $pattern) {
-            if (! str_contains($content, $pattern)) {
-                $newPatterns[] = $pattern;
-            }
-        }
-
-        if (empty($newPatterns)) {
-            return; // Nothing to add
-        }
-
-        // Add marker if not present
-        if (! str_contains($content, $marker)) {
-            $content .= $lineEnding.$marker.$lineEnding;
-        }
-
-        // Append new patterns
-        foreach ($newPatterns as $pattern) {
             $content .= $pattern.$lineEnding;
         }
+        $content .= $endMarker.$lineEnding;
 
         // Write back
         try {
@@ -230,5 +271,36 @@ class PluginManager
                 '<warning>Could not update .gitignore: '.$e->getMessage().'</warning>'
             );
         }
+    }
+
+    private function removeGitignoreSection(string $content, string $startMarker, string $endMarker, string $lineEnding): string
+    {
+        $startPos = mb_strpos($content, $startMarker);
+        if ($startPos === false) {
+            return $content; // No section to remove
+        }
+
+        // Find the end marker after the start marker
+        $endPos = mb_strpos($content, $endMarker, $startPos);
+        if ($endPos === false) {
+            return $content; // Malformed section, leave it alone
+        }
+
+        // Calculate the length to remove (include the end marker line)
+        $endOfEndMarker = mb_strpos($content, $lineEnding, $endPos);
+        if ($endOfEndMarker === false) {
+            $endOfEndMarker = mb_strlen($content);
+        } else {
+            $endOfEndMarker += mb_strlen($lineEnding);
+        }
+
+        // If there's a blank line before the start marker, remove it too
+        $removeFrom = $startPos;
+        if ($startPos > 0 && mb_substr($content, $startPos - mb_strlen($lineEnding), mb_strlen($lineEnding)) === $lineEnding) {
+            $removeFrom -= mb_strlen($lineEnding);
+        }
+
+        // Remove the section
+        return mb_substr($content, 0, $removeFrom).mb_substr($content, $endOfEndMarker);
     }
 }
