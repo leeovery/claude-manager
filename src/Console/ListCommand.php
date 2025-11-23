@@ -16,7 +16,7 @@ use function sprintf;
 
 class ListCommand extends Command
 {
-    protected static $defaultName = 'list';
+    protected static $defaultName = 'list-plugins';
 
     protected function configure(): void
     {
