@@ -233,6 +233,7 @@ class PluginManager
         if (empty($installedItems)) {
             try {
                 file_put_contents($gitignorePath, $content);
+                $this->sortGitignoreSections($gitignorePath, $lineEnding);
             } catch (Exception $e) {
                 $this->io?->write(
                     '<warning>Could not update .gitignore: '.$e->getMessage().'</warning>'
@@ -252,6 +253,9 @@ class PluginManager
             }
         }
 
+        // Sort patterns alphabetically for deterministic output
+        sort($patterns);
+
         // Add new section at the end
         if (! empty($content) && ! str_ends_with($content, $lineEnding)) {
             $content .= $lineEnding;
@@ -263,14 +267,65 @@ class PluginManager
         }
         $content .= $endMarker.$lineEnding;
 
-        // Write back
+        // Write back and sort all sections
         try {
             file_put_contents($gitignorePath, $content);
+            $this->sortGitignoreSections($gitignorePath, $lineEnding);
         } catch (Exception $e) {
             $this->io?->write(
                 '<warning>Could not update .gitignore: '.$e->getMessage().'</warning>'
             );
         }
+    }
+
+    private function sortGitignoreSections(string $gitignorePath, string $lineEnding): void
+    {
+        $content = file_get_contents($gitignorePath);
+
+        // Extract all Claude plugin sections
+        $sectionPattern = '/' . preg_quote($lineEnding, '/') . '# Claude plugins: ([^\s]+) \(start\)' .
+            '(.*?)' .
+            '# Claude plugins: [^\s]+ \(end\)' . preg_quote($lineEnding, '/') . '/s';
+
+        preg_match_all($sectionPattern, $content, $matches, PREG_SET_ORDER);
+
+        if (count($matches) < 2) {
+            return; // Nothing to sort
+        }
+
+        // Remove all sections from content
+        $contentWithoutSections = $content;
+        foreach ($matches as $match) {
+            $contentWithoutSections = str_replace($match[0], '', $contentWithoutSections);
+        }
+
+        // Sort sections by package name (second part after the slash)
+        usort($matches, function ($a, $b) {
+            $nameA = $this->extractPackageSortKey($a[1]);
+            $nameB = $this->extractPackageSortKey($b[1]);
+
+            return strcasecmp($nameA, $nameB);
+        });
+
+        // Rebuild content with sorted sections
+        $result = mb_rtrim($contentWithoutSections, $lineEnding);
+        if (! empty($result)) {
+            $result .= $lineEnding;
+        }
+
+        foreach ($matches as $match) {
+            $result .= $match[0];
+        }
+
+        file_put_contents($gitignorePath, $result);
+    }
+
+    private function extractPackageSortKey(string $packageName): string
+    {
+        // Extract the second part of the package name (e.g., "skill-name" from "vendor/skill-name")
+        $parts = explode('/', $packageName);
+
+        return count($parts) > 1 ? $parts[1] : $packageName;
     }
 
     private function removeGitignoreSection(string $content, string $startMarker, string $endMarker, string $lineEnding): string
