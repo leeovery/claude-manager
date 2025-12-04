@@ -83,16 +83,47 @@ The manager provides a CLI tool for managing plugins:
 
 ## Creating Plugins
 
-Want to create your own skill or command packages? Here's how:
+Want to create your own skill or command packages? The easiest way is to use the included scaffolding script.
 
-### Plugin Requirements
+### Quick Start with create-package
+
+Clone this repository and run the `create-package` script:
+
+```bash
+git clone https://github.com/leeovery/claude-manager.git
+cd claude-manager
+./create-package claude-my-skills
+```
+
+This creates a new plugin package in a sibling directory with:
+
+- Correct directory structure (`skills/`, `commands/`)
+- Pre-configured `composer.json` with `type: "claude-plugin"`
+- Basic `.gitignore` and `README.md`
+- [Anthropic's skill-creator](https://github.com/anthropics/skills/tree/main/skill-creator) skill installed locally to help you write new skills
+- Git repository initialized
+
+Then just:
+
+```bash
+cd ../claude-my-skills
+composer install
+```
+
+You're ready to start creating skills with Claude Code's help via the bundled skill-creator.
+
+### Manual Setup
+
+If you prefer to set things up manually:
+
+#### Plugin Requirements
 
 1. Set `type: "claude-plugin"` in composer.json
 2. Require `leeovery/claude-manager` as a dependency
 3. Include a `skills/` directory with skill subdirectories, and/or
 4. Include a `commands/` directory with `.md` command files
 
-### Example composer.json
+#### Example composer.json
 
 ```json
 {
@@ -107,7 +138,7 @@ Want to create your own skill or command packages? Here's how:
 }
 ```
 
-### Plugin Structure
+#### Plugin Structure
 
 ```
 your-plugin/
