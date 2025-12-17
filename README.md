@@ -160,6 +160,7 @@ The manager auto-discovers `skills/` and `commands/` directories—no additional
 | Package | Description |
 |---------|-------------|
 | [claude-laravel](https://github.com/leeovery/claude-laravel) | Opinionated Laravel development patterns and practices |
+| [claude-nuxt](https://github.com/leeovery/claude-nuxt) | Nuxt.js development skills for Claude Code |
 | [claude-technical-workflows](https://github.com/leeovery/claude-technical-workflows) | Technical workflow skills for Claude Code |
 
 *More plugins coming soon!*
