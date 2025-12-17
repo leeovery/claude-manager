@@ -85,14 +85,14 @@ The manager provides a CLI tool for managing plugins:
 
 Want to create your own skill or command packages? The easiest way is to use the included scaffolding script.
 
-### Quick Start with create-package
+### Quick Start with create-plugin
 
-Clone this repository and run the `create-package` script:
+Clone this repository and run the `create-plugin` script:
 
 ```bash
 git clone https://github.com/leeovery/claude-manager.git
 cd claude-manager
-./create-package claude-my-skills
+./create-plugin claude-my-skills
 ```
 
 This creates a new plugin package in a sibling directory with:
