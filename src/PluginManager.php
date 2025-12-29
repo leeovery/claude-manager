@@ -54,6 +54,12 @@ class PluginManager
             $installedItems = array_merge($installedItems, $this->autoDiscoverCommands($commandsPath));
         }
 
+        // Auto-discover and install agents
+        $agentsPath = $packagePath.'/agents';
+        if ($this->files->exists($agentsPath)) {
+            $installedItems = array_merge($installedItems, $this->autoDiscoverAgents($agentsPath));
+        }
+
         // Update gitignore with specific installed items
         $this->updateGitignore($package->getName(), $installedItems);
     }
@@ -110,12 +116,34 @@ class PluginManager
             }
         }
 
+        // List agents
+        if ($this->files->exists($this->claudeDir.'/agents')) {
+            $agentsIterator = new DirectoryIterator($this->claudeDir.'/agents');
+
+            foreach ($agentsIterator as $item) {
+                if ($item->isDot() || ! $item->isFile()) {
+                    continue;
+                }
+
+                $agentPath = $item->getPathname();
+
+                if (is_link($agentPath)) {
+                    $target = readlink($agentPath);
+                    $plugins[] = [
+                        'name' => $item->getFilename(),
+                        'path' => $target,
+                        'type' => 'agent',
+                    ];
+                }
+            }
+        }
+
         return $plugins;
     }
 
     private function cleanupPackageSymlinks(string $packageName): void
     {
-        $types = ['skills', 'commands'];
+        $types = ['skills', 'commands', 'agents'];
 
         foreach ($types as $type) {
             $dir = $this->claudeDir.'/'.$type;
@@ -199,6 +227,11 @@ class PluginManager
         return $this->symlinkItems($commandsPath, 'commands', fn ($item) => $item->isFile());
     }
 
+    private function autoDiscoverAgents(string $agentsPath): array
+    {
+        return $this->symlinkItems($agentsPath, 'agents', fn ($item) => $item->isFile());
+    }
+
     private function updateGitignore(string $packageName, array $installedItems): void
     {
         $gitignorePath = dirname($this->vendorDir).'/.gitignore';
@@ -250,6 +283,8 @@ class PluginManager
                 $patterns[] = '/.claude/skills/'.$item['name'];
             } elseif ($item['type'] === 'commands') {
                 $patterns[] = '/.claude/commands/'.$item['name'];
+            } elseif ($item['type'] === 'agents') {
+                $patterns[] = '/.claude/agents/'.$item['name'];
             }
         }
 
