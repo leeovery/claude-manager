@@ -23,7 +23,7 @@ class ListCommand extends Command
 {
     protected function configure(): void
     {
-        $this->setHelp('Shows all installed skills, commands, and agents');
+        $this->setHelp('Shows all installed skills, commands, agents, and hooks');
     }
 
     protected function execute(InputInterface $input, OutputInterface $output): int
@@ -46,15 +46,18 @@ class ListCommand extends Command
         $skillsCount = count(array_filter($plugins, fn ($p) => $p['type'] === 'skill'));
         $commandsCount = count(array_filter($plugins, fn ($p) => $p['type'] === 'command'));
         $agentsCount = count(array_filter($plugins, fn ($p) => $p['type'] === 'agent'));
+        $hooksCount = count(array_filter($plugins, fn ($p) => $p['type'] === 'hook'));
 
         $output->writeln(sprintf(
-            '<info>Found %d skill%s, %d command%s, and %d agent%s:</info>',
+            '<info>Found %d skill%s, %d command%s, %d agent%s, and %d hook%s:</info>',
             $skillsCount,
             $skillsCount === 1 ? '' : 's',
             $commandsCount,
             $commandsCount === 1 ? '' : 's',
             $agentsCount,
-            $agentsCount === 1 ? '' : 's'
+            $agentsCount === 1 ? '' : 's',
+            $hooksCount,
+            $hooksCount === 1 ? '' : 's'
         ));
         $output->writeln('');
 

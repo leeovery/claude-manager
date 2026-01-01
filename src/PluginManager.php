@@ -60,6 +60,12 @@ class PluginManager
             $installedItems = array_merge($installedItems, $this->autoDiscoverAgents($agentsPath));
         }
 
+        // Auto-discover and install hooks
+        $hooksPath = $packagePath.'/hooks';
+        if ($this->files->exists($hooksPath)) {
+            $installedItems = array_merge($installedItems, $this->autoDiscoverHooks($hooksPath));
+        }
+
         // Update gitignore with specific installed items
         $this->updateGitignore($package->getName(), $installedItems);
     }
@@ -138,12 +144,34 @@ class PluginManager
             }
         }
 
+        // List hooks
+        if ($this->files->exists($this->claudeDir.'/hooks')) {
+            $hooksIterator = new DirectoryIterator($this->claudeDir.'/hooks');
+
+            foreach ($hooksIterator as $item) {
+                if ($item->isDot() || ! $item->isFile()) {
+                    continue;
+                }
+
+                $hookPath = $item->getPathname();
+
+                if (is_link($hookPath)) {
+                    $target = readlink($hookPath);
+                    $plugins[] = [
+                        'name' => $item->getFilename(),
+                        'path' => $target,
+                        'type' => 'hook',
+                    ];
+                }
+            }
+        }
+
         return $plugins;
     }
 
     private function cleanupPackageSymlinks(string $packageName): void
     {
-        $types = ['skills', 'commands', 'agents'];
+        $types = ['skills', 'commands', 'agents', 'hooks'];
 
         foreach ($types as $type) {
             $dir = $this->claudeDir.'/'.$type;
@@ -232,6 +260,11 @@ class PluginManager
         return $this->symlinkItems($agentsPath, 'agents', fn ($item) => $item->isFile());
     }
 
+    private function autoDiscoverHooks(string $hooksPath): array
+    {
+        return $this->symlinkItems($hooksPath, 'hooks', fn ($item) => $item->isFile());
+    }
+
     private function updateGitignore(string $packageName, array $installedItems): void
     {
         $gitignorePath = dirname($this->vendorDir).'/.gitignore';
@@ -285,6 +318,8 @@ class PluginManager
                 $patterns[] = '/.claude/commands/'.$item['name'];
             } elseif ($item['type'] === 'agents') {
                 $patterns[] = '/.claude/agents/'.$item['name'];
+            } elseif ($item['type'] === 'hooks') {
+                $patterns[] = '/.claude/hooks/'.$item['name'];
             }
         }
 
