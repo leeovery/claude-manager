@@ -18,11 +18,11 @@
 
 ## About
 
-Claude Manager is a Composer plugin that automatically manages [Claude Code](https://claude.ai/code) skills and commands across your PHP projects.
+Claude Manager is a Composer plugin that automatically manages [Claude Code](https://claude.ai/code) skills, commands, agents, and hooks across your PHP projects.
 
 **What it does:**
-- Automatically symlinks skills and commands from plugin packages into your project's `.claude/` directory
-- Manages your `.gitignore` so symlinked plugins are excluded while custom skills remain committed
+- Automatically symlinks skills, commands, agents, and hooks from plugin packages into your project's `.claude/` directory
+- Manages your `.gitignore` so symlinked plugins are excluded while custom assets remain committed
 - Provides CLI tools for listing and managing installed plugins
 - Works seamlessly with Composer's install/update lifecycle
 
@@ -53,8 +53,10 @@ That's it. Composer hooks handle everything else.
 3. The manager scans for all installed `claude-plugin` packages
 4. Skills directories are symlinked to `.claude/skills/`
 5. Command files are symlinked to `.claude/commands/`
-6. Your `.gitignore` is automatically updated to exclude symlinked plugins
-7. Claude Code discovers them automatically
+6. Agent files are symlinked to `.claude/agents/`
+7. Hook files are symlinked to `.claude/hooks/`
+8. Your `.gitignore` is automatically updated to exclude symlinked plugins
+9. Claude Code discovers them automatically
 
 **After installation, your project structure looks like:**
 
@@ -63,8 +65,12 @@ your-project/
 ├── .claude/
 │   ├── skills/
 │   │   └── laravel-actions → ../../vendor/leeovery/claude-laravel/skills/laravel-actions
-│   └── commands/
-│       └── artisan-make.md → ../../vendor/leeovery/claude-laravel/commands/artisan-make.md
+│   ├── commands/
+│   │   └── artisan-make.md → ../../vendor/leeovery/claude-laravel/commands/artisan-make.md
+│   ├── agents/
+│   │   └── code-reviewer.md → ../../vendor/leeovery/claude-laravel/agents/code-reviewer.md
+│   └── hooks/
+│       └── pre-commit.sh → ../../vendor/leeovery/claude-laravel/hooks/pre-commit.sh
 ├── vendor/
 │   └── leeovery/
 │       ├── claude-manager/
@@ -78,7 +84,7 @@ The manager provides a CLI tool for managing plugins:
 
 | Command | Description |
 |---------|-------------|
-| `vendor/bin/claude-plugins list` | Show all installed skills and commands with their source paths |
+| `vendor/bin/claude-plugins list` | Show all installed skills, commands, agents, and hooks with their source paths |
 | `vendor/bin/claude-plugins install` | Manually trigger plugin installation (usually not needed) |
 
 ## Creating Plugins
@@ -97,7 +103,7 @@ cd claude-manager
 
 This creates a new plugin package in a sibling directory with:
 
-- Correct directory structure (`skills/`, `commands/`)
+- Correct directory structure (`skills/`, `commands/`, `agents/`, `hooks/`)
 - Pre-configured `composer.json` with `type: "claude-plugin"`
 - Basic `.gitignore` and `README.md`
 - [Anthropic's skill-creator](https://github.com/anthropics/skills/tree/main/skill-creator) skill installed locally to help you write new skills
@@ -121,7 +127,9 @@ If you prefer to set things up manually:
 1. Set `type: "claude-plugin"` in composer.json
 2. Require `leeovery/claude-manager` as a dependency
 3. Include a `skills/` directory with skill subdirectories, and/or
-4. Include a `commands/` directory with `.md` command files
+4. Include a `commands/` directory with `.md` command files, and/or
+5. Include an `agents/` directory with `.md` agent files, and/or
+6. Include a `hooks/` directory with hook files
 
 #### Example composer.json
 
@@ -150,10 +158,14 @@ your-plugin/
 ├── commands/
 │   ├── command-one.md
 │   └── command-two.md
+├── agents/
+│   └── agent-one.md
+├── hooks/
+│   └── pre-commit.sh
 └── composer.json
 ```
 
-The manager auto-discovers `skills/` and `commands/` directories—no additional configuration needed.
+The manager auto-discovers `skills/`, `commands/`, `agents/`, and `hooks/` directories—no additional configuration needed.
 
 ## Available Plugins
 
@@ -167,18 +179,20 @@ The manager auto-discovers `skills/` and `commands/` directories—no additional
 
 ## Automatic Gitignore Management
 
-The manager automatically updates your project's `.gitignore` to exclude symlinked plugins while preserving any custom skills and commands you create.
+The manager automatically updates your project's `.gitignore` to exclude symlinked plugins while preserving any custom skills, commands, agents, and hooks you create.
 
 **What gets added:**
 ```gitignore
 # Claude plugins (managed by leeovery/claude-laravel)
 /.claude/skills/laravel-actions/
 /.claude/commands/artisan-make.md
+/.claude/agents/code-reviewer.md
+/.claude/hooks/pre-commit.sh
 ```
 
 **This ensures:**
 - Symlinked plugins from vendor packages are ignored
-- Custom/local skills and commands you create can still be committed
+- Custom/local skills, commands, agents, and hooks you create can still be committed
 - The `.claude/` directory itself remains in version control
 
 ## Troubleshooting
@@ -193,11 +207,13 @@ vendor/bin/claude-plugins install
 
 ### Skills not showing in Claude Code
 
-Check that `.claude/skills/` and `.claude/commands/` exist and contain symlinks:
+Check that `.claude/skills/`, `.claude/commands/`, `.claude/agents/`, and `.claude/hooks/` exist and contain symlinks:
 
 ```bash
 ls -la .claude/skills/
 ls -la .claude/commands/
+ls -la .claude/agents/
+ls -la .claude/hooks/
 ```
 
 ### Plugin not detected
@@ -205,7 +221,7 @@ ls -la .claude/commands/
 Verify the plugin's composer.json has:
 - `"type": "claude-plugin"`
 - `leeovery/claude-manager` as a dependency
-- A `skills/` or `commands/` directory with content
+- A `skills/`, `commands/`, `agents/`, or `hooks/` directory with content
 
 ## Requirements
 
