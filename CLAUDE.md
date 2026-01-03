@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Composer plugin for managing Claude Code skills and commands. It automatically symlinks plugin assets to `.claude/` directories when packages with `type: "claude-plugin"` are installed.
+Composer plugin for managing Claude Code skills and commands. It automatically installs plugin assets to `.claude/` directories when packages with `type: "claude-plugin"` are installed. Supports two installation modes: **symlink** (default) or **copy**.
 
 ## Commands
 
@@ -17,6 +17,11 @@ vendor/bin/claude-plugins list
 
 # Manual install trigger
 vendor/bin/claude-plugins install
+
+# Show/change installation mode
+vendor/bin/claude-plugins mode          # Show current mode
+vendor/bin/claude-plugins mode copy     # Switch to copy mode
+vendor/bin/claude-plugins mode symlink  # Switch to symlink mode
 ```
 
 ## Architecture
@@ -24,19 +29,39 @@ vendor/bin/claude-plugins install
 **Core Components:**
 
 - `ComposerPlugin` - Composer event subscriber, hooks into `post-install-cmd`/`post-update-cmd`
-- `PluginManager` - Handles symlinking skills/commands from vendor packages to `.claude/`, manages `.gitignore` sections
+- `PluginManager` - Handles installing skills/commands/agents/hooks from vendor packages to `.claude/`, manages `.gitignore` sections, supports symlink and copy modes
 
 **Console Commands (in `src/Console/`):**
 
 - `InstallCommand` - Runs `composer install` to trigger hooks
-- `ListCommand` - Shows installed skills/commands with source paths
+- `ListCommand` - Shows installed skills/commands/agents/hooks with source paths and mode
+- `ModeCommand` - Gets or sets the installation mode (symlink/copy)
 
 **Flow:**
 1. Composer installs package with `type: "claude-plugin"`
 2. `ComposerPlugin::installPlugins()` fires
-3. `PluginManager` auto-discovers `skills/` and `commands/` dirs in package
-4. Creates symlinks to `.claude/skills/` and `.claude/commands/`
-5. Updates `.gitignore` with package-specific sections (sorted by package name)
+3. `PluginManager` reads mode from `composer.json` extra.claude-manager.mode
+4. Auto-discovers `skills/`, `commands/`, `agents/`, and `hooks/` dirs in package
+5. In symlink mode: creates symlinks, updates `.gitignore`
+6. In copy mode: copies files with marker files, removes gitignore entries
+
+**Installation Modes:**
+
+| Mode | Assets | Gitignore | Benefits |
+|------|--------|-----------|----------|
+| `symlink` (default) | Symlinks to vendor/ | Yes | Clean repo, always fresh versions |
+| `copy` | Copied files with `.claude-manager` markers | No | Immediate availability, customizable, git-trackable |
+
+**Mode Configuration (in consuming project's composer.json):**
+```json
+{
+    "extra": {
+        "claude-manager": {
+            "mode": "copy"
+        }
+    }
+}
+```
 
 ## Plugin Package Format
 
@@ -44,3 +69,5 @@ Plugins require:
 - `"type": "claude-plugin"` in composer.json
 - `skills/` dir with subdirectories (skill definitions)
 - `commands/` dir with `.md` files (slash commands)
+- `agents/` dir with `.md` files (agent definitions)
+- `hooks/` dir with hook files
