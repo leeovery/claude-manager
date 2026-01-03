@@ -79,6 +79,9 @@ class ComposerPlugin implements EventSubscriberInterface, PluginInterface
             return;
         }
 
+        // Prepare for installation (cleans up manifest-tracked assets in copy mode)
+        $manager->prepareInstall();
+
         // Find longest package name for alignment
         $maxLength = 0;
         foreach ($pluginPackages as $package) {

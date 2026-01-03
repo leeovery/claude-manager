@@ -16,6 +16,8 @@ class PluginManager
 
     public const MODE_COPY = 'copy';
 
+    private const MANIFEST_FILE = '.claude-manager.json';
+
     private Filesystem $files;
 
     private string $claudeDir;
@@ -25,6 +27,8 @@ class PluginManager
     private ?IOInterface $io;
 
     private string $mode;
+
+    private array $installedPaths = [];
 
     public function __construct(string $claudeDir, string $vendorDir, ?IOInterface $io = null, ?string $mode = null)
     {
@@ -80,6 +84,13 @@ class PluginManager
         return $this->mode;
     }
 
+    public function prepareInstall(): void
+    {
+        if ($this->mode === self::MODE_COPY) {
+            $this->cleanupFromManifest();
+        }
+    }
+
     public function installFromPackage(PackageInterface $package): void
     {
         $packagePath = $this->vendorDir.'/'.$package->getName();
@@ -90,7 +101,10 @@ class PluginManager
         }
 
         // Clean up old assets for this package before installing new ones
-        $this->cleanupPackageAssets($package->getName());
+        // In copy mode, cleanup is handled by prepareInstall() via manifest
+        if ($this->mode === self::MODE_SYMLINK) {
+            $this->cleanupSymlinksForPackage($package->getName());
+        }
 
         $installedItems = [];
 
@@ -283,6 +297,10 @@ class PluginManager
 
     public function cleanupAllAssets(): void
     {
+        // Clean up from manifest (for copy mode assets)
+        $this->cleanupFromManifest();
+
+        // Clean up symlinks
         $types = ['skills', 'commands', 'agents', 'hooks'];
 
         foreach ($types as $type) {
@@ -304,15 +322,6 @@ class PluginManager
                 // Remove symlinks
                 if (is_link($path)) {
                     unlink($path);
-
-                    continue;
-                }
-
-                // Remove copied files/directories with marker files
-                $markerFile = $this->getMarkerPath($path);
-                if (file_exists($markerFile)) {
-                    $this->files->remove($path);
-                    $this->files->remove($markerFile);
                 }
             }
         }
@@ -325,7 +334,7 @@ class PluginManager
         return self::readModeFromComposerJson($composerJsonPath);
     }
 
-    private function cleanupPackageAssets(string $packageName): void
+    private function cleanupSymlinksForPackage(string $packageName): void
     {
         $types = ['skills', 'commands', 'agents', 'hooks'];
 
@@ -345,32 +354,79 @@ class PluginManager
 
                 $path = $item->getPathname();
 
-                // For symlinks, check if target points to this package
+                // Only handle symlinks - check if target points to this package
                 if (is_link($path)) {
                     $target = readlink($path);
                     if ($target && str_contains($target, $this->vendorDir.'/'.$packageName.'/')) {
                         unlink($path);
-                    }
-
-                    continue;
-                }
-
-                // For copied files/directories, check the marker file
-                $markerFile = $this->getMarkerPath($path);
-                if (file_exists($markerFile)) {
-                    $markerContent = file_get_contents($markerFile);
-                    if (str_contains($markerContent, $packageName)) {
-                        $this->files->remove($path);
-                        $this->files->remove($markerFile);
                     }
                 }
             }
         }
     }
 
-    private function getMarkerPath(string $assetPath): string
+    private function getManifestPath(): string
     {
-        return $assetPath.'.claude-manager';
+        return $this->claudeDir.'/'.self::MANIFEST_FILE;
+    }
+
+    private function readManifest(): array
+    {
+        $path = $this->getManifestPath();
+
+        if (! file_exists($path)) {
+            return ['installed' => []];
+        }
+
+        $content = file_get_contents($path);
+        $data = json_decode($content, true);
+
+        if (json_last_error() !== JSON_ERROR_NONE) {
+            return ['installed' => []];
+        }
+
+        return $data;
+    }
+
+    private function writeManifest(): void
+    {
+        $path = $this->getManifestPath();
+
+        // Ensure .claude directory exists
+        if (! $this->files->exists($this->claudeDir)) {
+            $this->files->mkdir($this->claudeDir, 0755);
+        }
+
+        $data = ['installed' => array_values(array_unique($this->installedPaths))];
+        sort($data['installed']);
+
+        file_put_contents($path, json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES)."\n");
+    }
+
+    private function cleanupFromManifest(): void
+    {
+        $manifest = $this->readManifest();
+
+        foreach ($manifest['installed'] ?? [] as $relativePath) {
+            $fullPath = $this->claudeDir.'/'.$relativePath;
+
+            if ($this->files->exists($fullPath)) {
+                $this->files->remove($fullPath);
+            }
+        }
+
+        // Clear manifest and in-memory tracking
+        $this->installedPaths = [];
+        $manifestPath = $this->getManifestPath();
+        if (file_exists($manifestPath)) {
+            $this->files->remove($manifestPath);
+        }
+    }
+
+    private function addToManifest(string $type, string $name): void
+    {
+        $this->installedPaths[] = $type.'/'.$name;
+        $this->writeManifest();
     }
 
     private function autoDiscoverSkills(string $skillsPath): array
@@ -447,9 +503,6 @@ class PluginManager
         $targetDir = $this->claudeDir.'/'.$type;
         $installed = [];
 
-        // Extract package name from source path for marker file
-        $packageName = $this->extractPackageNameFromPath($sourcePath);
-
         $iterator = new DirectoryIterator($sourcePath);
 
         foreach ($iterator as $item) {
@@ -479,12 +532,6 @@ class PluginManager
                 }
             }
 
-            // Remove existing marker file if present
-            $markerFile = $this->getMarkerPath($target);
-            if ($this->files->exists($markerFile)) {
-                $this->files->remove($markerFile);
-            }
-
             // Copy file or directory
             if ($item->isDir()) {
                 $this->files->mirror($source, $target);
@@ -492,32 +539,13 @@ class PluginManager
                 $this->files->copy($source, $target);
             }
 
-            // Create marker file to track which package this came from
-            file_put_contents($markerFile, $packageName);
+            // Track in manifest
+            $this->addToManifest($type, $item->getFilename());
 
             $installed[] = ['type' => $type, 'name' => $item->getFilename()];
         }
 
         return $installed;
-    }
-
-    private function extractPackageNameFromPath(string $path): string
-    {
-        // Path looks like: /path/to/vendor/vendor-name/package-name/skills
-        // We want to extract: vendor-name/package-name
-        $vendorPos = mb_strpos($path, $this->vendorDir);
-        if ($vendorPos === false) {
-            return 'unknown';
-        }
-
-        $relativePath = mb_substr($path, mb_strlen($this->vendorDir) + 1);
-        $parts = explode('/', $relativePath);
-
-        if (count($parts) >= 2) {
-            return $parts[0].'/'.$parts[1];
-        }
-
-        return 'unknown';
     }
 
     private function updateGitignore(string $packageName, array $installedItems): void
