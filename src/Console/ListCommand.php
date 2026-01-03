@@ -62,12 +62,13 @@ class ListCommand extends Command
         $output->writeln('');
 
         $table = new Table($output);
-        $table->setHeaders(['Name', 'Type', 'Source Path']);
+        $table->setHeaders(['Name', 'Type', 'Mode', 'Source Path']);
 
         foreach ($plugins as $plugin) {
             $table->addRow([
                 $plugin['name'],
                 $plugin['type'],
+                $plugin['mode'] ?? 'symlink',
                 $plugin['path'],
             ]);
         }

@@ -25,6 +25,7 @@ if (! $autoloadFound) {
 
 use LeeOvery\ClaudeManager\Console\InstallCommand;
 use LeeOvery\ClaudeManager\Console\ListCommand;
+use LeeOvery\ClaudeManager\Console\ModeCommand;
 use Symfony\Component\Console\Application;
 
 // Read version from release.txt
@@ -38,5 +39,6 @@ $application = new Application('Claude Plugins', $version);
 
 $application->add(new ListCommand());
 $application->add(new InstallCommand());
+$application->add(new ModeCommand());
 
 $application->run();

@@ -8,6 +8,7 @@
   <a href="#about">About</a> •
   <a href="#installation">Installation</a> •
   <a href="#how-it-works">How It Works</a> •
+  <a href="#installation-modes">Installation Modes</a> •
   <a href="#cli-commands">CLI Commands</a> •
   <a href="#creating-plugins">Creating Plugins</a> •
   <a href="#available-plugins">Available Plugins</a> •
@@ -21,8 +22,9 @@
 Claude Manager is a Composer plugin that automatically manages [Claude Code](https://claude.ai/code) skills, commands, agents, and hooks across your PHP projects.
 
 **What it does:**
-- Automatically symlinks skills, commands, agents, and hooks from plugin packages into your project's `.claude/` directory
-- Manages your `.gitignore` so symlinked plugins are excluded while custom assets remain committed
+- Automatically installs skills, commands, agents, and hooks from plugin packages into your project's `.claude/` directory
+- Supports two installation modes: **symlink** (default) or **copy**
+- Manages your `.gitignore` based on the installation mode
 - Provides CLI tools for listing and managing installed plugins
 - Works seamlessly with Composer's install/update lifecycle
 
@@ -78,14 +80,84 @@ your-project/
 └── composer.json
 ```
 
+## Installation Modes
+
+The manager supports two installation modes:
+
+### Symlink Mode (Default)
+
+Assets are symlinked from `vendor/` to `.claude/` and automatically gitignored.
+
+**Benefits:**
+- Keeps your repository clean—plugin assets stay in vendor/
+- Always get fresh versions when packages are updated
+- No merge conflicts with upstream changes
+
+```bash
+# This is the default behavior - no configuration needed
+```
+
+### Copy Mode
+
+Assets are copied to `.claude/` and become part of your repository.
+
+**Benefits:**
+- Assets are available immediately without running `composer install`
+- You can customize and modify installed skills, commands, agents, and hooks
+- Use git to track your changes and handle conflicts with upstream updates
+
+```bash
+# Switch to copy mode
+vendor/bin/claude-plugins mode copy
+```
+
+This updates your `composer.json`:
+
+```json
+{
+    "extra": {
+        "claude-manager": {
+            "mode": "copy"
+        }
+    }
+}
+```
+
+### Mode Comparison
+
+| Aspect | Symlink Mode | Copy Mode |
+|--------|--------------|-----------|
+| Assets | Symlinks to vendor/ | Copied files in repository |
+| Gitignore | Yes (auto-managed) | No (assets can be committed) |
+| Customization | Edit vendor files (not recommended) | Edit directly, track with git |
+| Updates | Automatic on composer update | Overwrites on composer update |
+
+### Switching Modes
+
+```bash
+# Show current mode
+vendor/bin/claude-plugins mode
+
+# Switch to copy mode (removes gitignore entries, copies files)
+vendor/bin/claude-plugins mode copy
+
+# Switch to symlink mode (adds gitignore entries, creates symlinks)
+vendor/bin/claude-plugins mode symlink
+```
+
+> **Note:** In copy mode, plugin assets are overwritten during `composer update`. Use git to track your local changes—you can review diffs and resolve conflicts just like any other code update.
+
 ## CLI Commands
 
 The manager provides a CLI tool for managing plugins:
 
 | Command | Description |
 |---------|-------------|
-| `vendor/bin/claude-plugins list` | Show all installed skills, commands, agents, and hooks with their source paths |
+| `vendor/bin/claude-plugins list` | Show all installed skills, commands, agents, and hooks with their source paths and mode |
 | `vendor/bin/claude-plugins install` | Manually trigger plugin installation (usually not needed) |
+| `vendor/bin/claude-plugins mode` | Show current installation mode |
+| `vendor/bin/claude-plugins mode copy` | Switch to copy mode |
+| `vendor/bin/claude-plugins mode symlink` | Switch to symlink mode |
 
 ## Creating Plugins
 
@@ -179,21 +251,24 @@ The manager auto-discovers `skills/`, `commands/`, `agents/`, and `hooks/` direc
 
 ## Automatic Gitignore Management
 
-The manager automatically updates your project's `.gitignore` to exclude symlinked plugins while preserving any custom skills, commands, agents, and hooks you create.
+In **symlink mode** (default), the manager automatically updates your project's `.gitignore` to exclude symlinked plugins while preserving any custom skills, commands, agents, and hooks you create.
 
 **What gets added:**
 ```gitignore
-# Claude plugins (managed by leeovery/claude-laravel)
-/.claude/skills/laravel-actions/
+# Claude plugins: leeovery/claude-laravel (start)
+/.claude/skills/laravel-actions
 /.claude/commands/artisan-make.md
 /.claude/agents/code-reviewer.md
 /.claude/hooks/pre-commit.sh
+# Claude plugins: leeovery/claude-laravel (end)
 ```
 
 **This ensures:**
 - Symlinked plugins from vendor packages are ignored
 - Custom/local skills, commands, agents, and hooks you create can still be committed
 - The `.claude/` directory itself remains in version control
+
+In **copy mode**, gitignore entries are automatically removed, allowing copied assets to be committed to your repository.
 
 ## Troubleshooting
 
