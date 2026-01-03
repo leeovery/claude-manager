@@ -12,6 +12,10 @@ use Symfony\Component\Filesystem\Filesystem;
 
 class PluginManager
 {
+    public const MODE_SYMLINK = 'symlink';
+
+    public const MODE_COPY = 'copy';
+
     private Filesystem $files;
 
     private string $claudeDir;
@@ -20,12 +24,39 @@ class PluginManager
 
     private ?IOInterface $io;
 
-    public function __construct(string $claudeDir, string $vendorDir, ?IOInterface $io = null)
+    private string $mode;
+
+    public function __construct(string $claudeDir, string $vendorDir, ?IOInterface $io = null, ?string $mode = null)
     {
         $this->files = new Filesystem();
         $this->claudeDir = $claudeDir;
         $this->vendorDir = $vendorDir;
         $this->io = $io;
+        $this->mode = $mode ?? $this->readModeFromComposer() ?? self::MODE_SYMLINK;
+    }
+
+    public function getMode(): string
+    {
+        return $this->mode;
+    }
+
+    public static function readModeFromComposerJson(string $composerJsonPath): ?string
+    {
+        if (! file_exists($composerJsonPath)) {
+            return null;
+        }
+
+        $content = file_get_contents($composerJsonPath);
+        $data = json_decode($content, true);
+
+        return $data['extra']['claude-manager']['mode'] ?? null;
+    }
+
+    private function readModeFromComposer(): ?string
+    {
+        $composerJsonPath = dirname($this->vendorDir).'/composer.json';
+
+        return self::readModeFromComposerJson($composerJsonPath);
     }
 
     public function installFromPackage(PackageInterface $package): void
@@ -37,8 +68,8 @@ class PluginManager
             $this->files->mkdir($this->claudeDir, 0755);
         }
 
-        // Clean up old symlinks for this package before installing new ones
-        $this->cleanupPackageSymlinks($package->getName());
+        // Clean up old assets for this package before installing new ones
+        $this->cleanupPackageAssets($package->getName());
 
         $installedItems = [];
 
@@ -66,8 +97,13 @@ class PluginManager
             $installedItems = array_merge($installedItems, $this->autoDiscoverHooks($hooksPath));
         }
 
-        // Update gitignore with specific installed items
-        $this->updateGitignore($package->getName(), $installedItems);
+        // Only update gitignore in symlink mode
+        if ($this->mode === self::MODE_SYMLINK) {
+            $this->updateGitignore($package->getName(), $installedItems);
+        } else {
+            // In copy mode, remove any existing gitignore entries for this package
+            $this->removeGitignoreEntriesForPackage($package->getName());
+        }
     }
 
     public function list(): array
@@ -78,7 +114,7 @@ class PluginManager
             return $plugins;
         }
 
-        // List skills
+        // List skills (directories)
         if ($this->files->exists($this->claudeDir.'/skills')) {
             $skillsIterator = new DirectoryIterator($this->claudeDir.'/skills');
 
@@ -90,77 +126,105 @@ class PluginManager
                 $skillPath = $item->getPathname();
 
                 if (is_link($skillPath)) {
-                    $target = readlink($skillPath);
                     $plugins[] = [
                         'name' => $item->getFilename(),
-                        'path' => $target,
+                        'path' => readlink($skillPath),
                         'type' => 'skill',
+                        'mode' => 'symlink',
+                    ];
+                } elseif ($item->isDir()) {
+                    $plugins[] = [
+                        'name' => $item->getFilename(),
+                        'path' => $skillPath,
+                        'type' => 'skill',
+                        'mode' => 'copy',
                     ];
                 }
             }
         }
 
-        // List commands
+        // List commands (files)
         if ($this->files->exists($this->claudeDir.'/commands')) {
             $commandsIterator = new DirectoryIterator($this->claudeDir.'/commands');
 
             foreach ($commandsIterator as $item) {
-                if ($item->isDot() || ! $item->isFile()) {
+                if ($item->isDot()) {
                     continue;
                 }
 
                 $commandPath = $item->getPathname();
 
                 if (is_link($commandPath)) {
-                    $target = readlink($commandPath);
                     $plugins[] = [
                         'name' => $item->getFilename(),
-                        'path' => $target,
+                        'path' => readlink($commandPath),
                         'type' => 'command',
+                        'mode' => 'symlink',
+                    ];
+                } elseif ($item->isFile()) {
+                    $plugins[] = [
+                        'name' => $item->getFilename(),
+                        'path' => $commandPath,
+                        'type' => 'command',
+                        'mode' => 'copy',
                     ];
                 }
             }
         }
 
-        // List agents
+        // List agents (files)
         if ($this->files->exists($this->claudeDir.'/agents')) {
             $agentsIterator = new DirectoryIterator($this->claudeDir.'/agents');
 
             foreach ($agentsIterator as $item) {
-                if ($item->isDot() || ! $item->isFile()) {
+                if ($item->isDot()) {
                     continue;
                 }
 
                 $agentPath = $item->getPathname();
 
                 if (is_link($agentPath)) {
-                    $target = readlink($agentPath);
                     $plugins[] = [
                         'name' => $item->getFilename(),
-                        'path' => $target,
+                        'path' => readlink($agentPath),
                         'type' => 'agent',
+                        'mode' => 'symlink',
+                    ];
+                } elseif ($item->isFile()) {
+                    $plugins[] = [
+                        'name' => $item->getFilename(),
+                        'path' => $agentPath,
+                        'type' => 'agent',
+                        'mode' => 'copy',
                     ];
                 }
             }
         }
 
-        // List hooks
+        // List hooks (files)
         if ($this->files->exists($this->claudeDir.'/hooks')) {
             $hooksIterator = new DirectoryIterator($this->claudeDir.'/hooks');
 
             foreach ($hooksIterator as $item) {
-                if ($item->isDot() || ! $item->isFile()) {
+                if ($item->isDot()) {
                     continue;
                 }
 
                 $hookPath = $item->getPathname();
 
                 if (is_link($hookPath)) {
-                    $target = readlink($hookPath);
                     $plugins[] = [
                         'name' => $item->getFilename(),
-                        'path' => $target,
+                        'path' => readlink($hookPath),
                         'type' => 'hook',
+                        'mode' => 'symlink',
+                    ];
+                } elseif ($item->isFile()) {
+                    $plugins[] = [
+                        'name' => $item->getFilename(),
+                        'path' => $hookPath,
+                        'type' => 'hook',
+                        'mode' => 'copy',
                     ];
                 }
             }
@@ -169,7 +233,7 @@ class PluginManager
         return $plugins;
     }
 
-    private function cleanupPackageSymlinks(string $packageName): void
+    private function cleanupPackageAssets(string $packageName): void
     {
         $types = ['skills', 'commands', 'agents', 'hooks'];
 
@@ -189,25 +253,37 @@ class PluginManager
 
                 $path = $item->getPathname();
 
-                // Only process symlinks
-                if (! is_link($path)) {
+                // For symlinks, check if target points to this package
+                if (is_link($path)) {
+                    $target = readlink($path);
+                    if ($target && str_contains($target, $this->vendorDir.'/'.$packageName.'/')) {
+                        unlink($path);
+                    }
+
                     continue;
                 }
 
-                // Get the symlink target
-                $target = readlink($path);
-
-                // If the target points to this package's vendor directory, remove it
-                if ($target && str_contains($target, $this->vendorDir.'/'.$packageName.'/')) {
-                    unlink($path);
+                // For copied files/directories, check the marker file
+                $markerFile = $this->getMarkerPath($path);
+                if (file_exists($markerFile)) {
+                    $markerContent = file_get_contents($markerFile);
+                    if (str_contains($markerContent, $packageName)) {
+                        $this->files->remove($path);
+                        $this->files->remove($markerFile);
+                    }
                 }
             }
         }
     }
 
+    private function getMarkerPath(string $assetPath): string
+    {
+        return $assetPath.'.claude-manager';
+    }
+
     private function autoDiscoverSkills(string $skillsPath): array
     {
-        return $this->symlinkItems($skillsPath, 'skills', fn ($item) => $item->isDir());
+        return $this->installItems($skillsPath, 'skills', fn ($item) => $item->isDir());
     }
 
     private function symlinkItems(string $sourcePath, string $type, callable $filter): array
@@ -252,17 +328,104 @@ class PluginManager
 
     private function autoDiscoverCommands(string $commandsPath): array
     {
-        return $this->symlinkItems($commandsPath, 'commands', fn ($item) => $item->isFile());
+        return $this->installItems($commandsPath, 'commands', fn ($item) => $item->isFile());
     }
 
     private function autoDiscoverAgents(string $agentsPath): array
     {
-        return $this->symlinkItems($agentsPath, 'agents', fn ($item) => $item->isFile());
+        return $this->installItems($agentsPath, 'agents', fn ($item) => $item->isFile());
     }
 
     private function autoDiscoverHooks(string $hooksPath): array
     {
-        return $this->symlinkItems($hooksPath, 'hooks', fn ($item) => $item->isFile());
+        return $this->installItems($hooksPath, 'hooks', fn ($item) => $item->isFile());
+    }
+
+    private function installItems(string $sourcePath, string $type, callable $filter): array
+    {
+        if ($this->mode === self::MODE_COPY) {
+            return $this->copyItems($sourcePath, $type, $filter);
+        }
+
+        return $this->symlinkItems($sourcePath, $type, $filter);
+    }
+
+    private function copyItems(string $sourcePath, string $type, callable $filter): array
+    {
+        $targetDir = $this->claudeDir.'/'.$type;
+        $installed = [];
+
+        // Extract package name from source path for marker file
+        $packageName = $this->extractPackageNameFromPath($sourcePath);
+
+        $iterator = new DirectoryIterator($sourcePath);
+
+        foreach ($iterator as $item) {
+            if ($item->isDot() || ! $filter($item)) {
+                continue;
+            }
+
+            // Skip .gitkeep files
+            if ($item->getFilename() === '.gitkeep') {
+                continue;
+            }
+
+            // Create target directory only if we have items to install
+            if (! $this->files->exists($targetDir)) {
+                $this->files->mkdir($targetDir, 0755);
+            }
+
+            $source = $item->getPathname();
+            $target = $targetDir.'/'.$item->getFilename();
+
+            // Remove existing target (symlink or file/directory)
+            if ($this->files->exists($target) || is_link($target)) {
+                if (is_link($target)) {
+                    unlink($target);
+                } else {
+                    $this->files->remove($target);
+                }
+            }
+
+            // Remove existing marker file if present
+            $markerFile = $this->getMarkerPath($target);
+            if ($this->files->exists($markerFile)) {
+                $this->files->remove($markerFile);
+            }
+
+            // Copy file or directory
+            if ($item->isDir()) {
+                $this->files->mirror($source, $target);
+            } else {
+                $this->files->copy($source, $target);
+            }
+
+            // Create marker file to track which package this came from
+            file_put_contents($markerFile, $packageName);
+
+            $installed[] = ['type' => $type, 'name' => $item->getFilename()];
+        }
+
+        return $installed;
+    }
+
+    private function extractPackageNameFromPath(string $path): string
+    {
+        // Path looks like: /path/to/vendor/vendor-name/package-name/skills
+        // We want to extract: vendor-name/package-name
+        $vendorPos = strpos($path, $this->vendorDir);
+        if ($vendorPos === false) {
+            return 'unknown';
+        }
+
+        $relativePath = substr($path, strlen($this->vendorDir) + 1);
+        $parts = explode('/', $relativePath);
+
+        if (count($parts) >= 2) {
+            return $parts[0].'/'.$parts[1];
+        }
+
+        return 'unknown';
     }
 
     private function updateGitignore(string $packageName, array $installedItems): void
@@ -427,5 +590,90 @@ class PluginManager
 
         // Remove the section
         return mb_substr($content, 0, $removeFrom).mb_substr($content, $endOfEndMarker);
+    }
+
+    private function removeGitignoreEntriesForPackage(string $packageName): void
+    {
+        $gitignorePath = dirname($this->vendorDir).'/.gitignore';
+
+        if (! file_exists($gitignorePath)) {
+            return;
+        }
+
+        $content = file_get_contents($gitignorePath);
+        $lineEnding = str_contains($content, "\r\n") ? "\r\n" : "\n";
+
+        $startMarker = "# Claude plugins: {$packageName} (start)";
+        $endMarker = "# Claude plugins: {$packageName} (end)";
+
+        $newContent = $this->removeGitignoreSection($content, $startMarker, $endMarker, $lineEnding);
+
+        if ($newContent !== $content) {
+            file_put_contents($gitignorePath, $newContent);
+        }
+    }
+
+    public function removeAllGitignoreEntries(): void
+    {
+        $gitignorePath = dirname($this->vendorDir).'/.gitignore';
+
+        if (! file_exists($gitignorePath)) {
+            return;
+        }
+
+        $content = file_get_contents($gitignorePath);
+        $lineEnding = str_contains($content, "\r\n") ? "\r\n" : "\n";
+
+        // Find and remove all Claude plugin sections
+        $pattern = '/' . preg_quote($lineEnding, '/') . '?# Claude plugins: [^\s]+ \(start\)' .
+            '.*?' .
+            '# Claude plugins: [^\s]+ \(end\)' . preg_quote($lineEnding, '/') . '?/s';
+
+        $newContent = preg_replace($pattern, '', $content);
+
+        // Clean up any double blank lines that might result
+        $newContent = preg_replace('/(' . preg_quote($lineEnding, '/') . '){3,}/', $lineEnding.$lineEnding, $newContent);
+
+        if ($newContent !== $content) {
+            file_put_contents($gitignorePath, $newContent);
+            $this->io?->write('<info>Removed Claude plugin entries from .gitignore</info>');
+        }
+    }
+
+    public function cleanupAllAssets(): void
+    {
+        $types = ['skills', 'commands', 'agents', 'hooks'];
+
+        foreach ($types as $type) {
+            $dir = $this->claudeDir.'/'.$type;
+
+            if (! $this->files->exists($dir)) {
+                continue;
+            }
+
+            $iterator = new DirectoryIterator($dir);
+
+            foreach ($iterator as $item) {
+                if ($item->isDot()) {
+                    continue;
+                }
+
+                $path = $item->getPathname();
+
+                // Remove symlinks
+                if (is_link($path)) {
+                    unlink($path);
+
+                    continue;
+                }
+
+                // Remove copied files/directories with marker files
+                $markerFile = $this->getMarkerPath($path);
+                if (file_exists($markerFile)) {
+                    $this->files->remove($path);
+                    $this->files->remove($markerFile);
+                }
+            }
+        }
     }
 }
