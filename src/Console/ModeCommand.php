@@ -82,9 +82,13 @@ HELP);
         $output->writeln(sprintf('Switching from <comment>%s</comment> to <info>%s</info> mode...', $currentMode, $newMode));
         $output->writeln('');
 
-        if (! $this->updateComposerJson($composerJsonPath, $newMode, $output)) {
+        if (! PluginManager::writeModeToComposerJson($composerJsonPath, $newMode)) {
+            $output->writeln('<error>Failed to update composer.json</error>');
+
             return Command::FAILURE;
         }
+
+        $output->writeln('<info>Updated composer.json</info>');
 
         // Clean up existing assets
         $output->writeln('<info>Cleaning up existing assets...</info>');
@@ -128,41 +132,5 @@ HELP);
         }
 
         return Command::SUCCESS;
-    }
-
-    private function updateComposerJson(string $path, string $mode, OutputInterface $output): bool
-    {
-        $content = file_get_contents($path);
-        $data = json_decode($content, true);
-
-        if (json_last_error() !== JSON_ERROR_NONE) {
-            $output->writeln('<error>Failed to parse composer.json</error>');
-
-            return false;
-        }
-
-        // Set or update the mode in extra.claude-manager.mode
-        if (! isset($data['extra'])) {
-            $data['extra'] = [];
-        }
-
-        if (! isset($data['extra']['claude-manager'])) {
-            $data['extra']['claude-manager'] = [];
-        }
-
-        $data['extra']['claude-manager']['mode'] = $mode;
-
-        // Write back with proper formatting
-        $newContent = json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES)."\n";
-
-        if (file_put_contents($path, $newContent) === false) {
-            $output->writeln('<error>Failed to write composer.json</error>');
-
-            return false;
-        }
-
-        $output->writeln('<info>Updated composer.json</info>');
-
-        return true;
     }
 }

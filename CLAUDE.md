@@ -40,10 +40,13 @@ vendor/bin/claude-plugins mode symlink  # Switch to symlink mode
 **Flow:**
 1. Composer installs package with `type: "claude-plugin"`
 2. `ComposerPlugin::installPlugins()` fires
-3. `PluginManager` reads mode from `composer.json` extra.claude-manager.mode
-4. Auto-discovers `skills/`, `commands/`, `agents/`, and `hooks/` dirs in package
-5. In symlink mode: creates symlinks, updates `.gitignore`
-6. In copy mode: copies files with marker files, removes gitignore entries
+3. If no mode configured and interactive: prompts user to choose mode, saves to `composer.json`
+4. `PluginManager` reads mode from `composer.json` extra.claude-manager.mode
+5. Auto-discovers `skills/`, `commands/`, `agents/`, and `hooks/` dirs in package
+6. In symlink mode: creates symlinks, updates `.gitignore`
+7. In copy mode: copies files with marker files, removes gitignore entries
+
+**Note:** The mode setting is global—it applies to all plugins managed by this package, not per-plugin.
 
 **Installation Modes:**
 

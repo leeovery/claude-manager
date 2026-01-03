@@ -82,7 +82,22 @@ your-project/
 
 ## Installation Modes
 
-The manager supports two installation modes:
+The manager supports two installation modes. On first install, you'll be prompted to choose:
+
+```
+Choose installation mode for Claude plugins:
+
+  [1] symlink - Creates symlinks to vendor packages (default)
+                Assets are gitignored and always stay up-to-date
+
+  [2] copy    - Copies files from vendor packages
+                Assets are committed to git and work immediately
+                Recommended for Claude Code on the web
+
+Select mode [1]:
+```
+
+Your choice is saved to `composer.json` and applied to all plugins managed by this package.
 
 ### Symlink Mode (Default)
 
