@@ -115,10 +115,10 @@ class ComposerPlugin implements EventSubscriberInterface, PluginInterface
         $this->io->write('<comment>Choose installation mode for Claude plugins:</comment>');
         $this->io->write('');
         $this->io->write('  <info>[1] symlink</info> - Creates symlinks to vendor packages (default)');
-        $this->io->write('                Assets are gitignored and always stay up-to-date');
+        $this->io->write('                Assets are gitignored');
         $this->io->write('');
         $this->io->write('  <info>[2] copy</info>    - Copies files from vendor packages');
-        $this->io->write('                Assets are committed to git and work immediately');
+        $this->io->write('                Assets are added to git');
         $this->io->write('                Recommended for Claude Code on the web');
         $this->io->write('');
 
