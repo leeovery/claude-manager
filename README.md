@@ -34,13 +34,7 @@ Instead of manually copying skill files between projects, you can install them a
 
 ## Installation
 
-The manager is typically installed automatically as a dependency of plugin packages:
-
-```bash
-composer require --dev leeovery/claude-laravel
-```
-
-If you need to install it directly:
+The manager is typically installed automatically as a dependency of plugin packagesbut if you need to install it directly:
 
 ```bash
 composer require --dev leeovery/claude-manager
