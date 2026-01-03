@@ -35,11 +35,6 @@ class PluginManager
         $this->mode = $mode ?? $this->readModeFromComposer() ?? self::MODE_SYMLINK;
     }
 
-    public function getMode(): string
-    {
-        return $this->mode;
-    }
-
     public static function readModeFromComposerJson(string $composerJsonPath): ?string
     {
         if (! file_exists($composerJsonPath)) {
@@ -52,11 +47,37 @@ class PluginManager
         return $data['extra']['claude-manager']['mode'] ?? null;
     }
 
-    private function readModeFromComposer(): ?string
+    public static function writeModeToComposerJson(string $composerJsonPath, string $mode): bool
     {
-        $composerJsonPath = dirname($this->vendorDir).'/composer.json';
+        if (! file_exists($composerJsonPath)) {
+            return false;
+        }
 
-        return self::readModeFromComposerJson($composerJsonPath);
+        $content = file_get_contents($composerJsonPath);
+        $data = json_decode($content, true);
+
+        if (json_last_error() !== JSON_ERROR_NONE) {
+            return false;
+        }
+
+        if (! isset($data['extra'])) {
+            $data['extra'] = [];
+        }
+
+        if (! isset($data['extra']['claude-manager'])) {
+            $data['extra']['claude-manager'] = [];
+        }
+
+        $data['extra']['claude-manager']['mode'] = $mode;
+
+        $newContent = json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES)."\n";
+
+        return file_put_contents($composerJsonPath, $newContent) !== false;
+    }
+
+    public function getMode(): string
+    {
+        return $this->mode;
     }
 
     public function installFromPackage(PackageInterface $package): void
@@ -231,6 +252,77 @@ class PluginManager
         }
 
         return $plugins;
+    }
+
+    public function removeAllGitignoreEntries(): void
+    {
+        $gitignorePath = dirname($this->vendorDir).'/.gitignore';
+
+        if (! file_exists($gitignorePath)) {
+            return;
+        }
+
+        $content = file_get_contents($gitignorePath);
+        $lineEnding = str_contains($content, "\r\n") ? "\r\n" : "\n";
+
+        // Find and remove all Claude plugin sections
+        $pattern = '/' . preg_quote($lineEnding, '/') . '?# Claude plugins: [^\s]+ \(start\)' .
+            '.*?' .
+            '# Claude plugins: [^\s]+ \(end\)' . preg_quote($lineEnding, '/') . '?/s';
+
+        $newContent = preg_replace($pattern, '', $content);
+
+        // Clean up any double blank lines that might result
+        $newContent = preg_replace('/(' . preg_quote($lineEnding, '/') . '){3,}/', $lineEnding.$lineEnding, $newContent);
+
+        if ($newContent !== $content) {
+            file_put_contents($gitignorePath, $newContent);
+            $this->io?->write('<info>Removed Claude plugin entries from .gitignore</info>');
+        }
+    }
+
+    public function cleanupAllAssets(): void
+    {
+        $types = ['skills', 'commands', 'agents', 'hooks'];
+
+        foreach ($types as $type) {
+            $dir = $this->claudeDir.'/'.$type;
+
+            if (! $this->files->exists($dir)) {
+                continue;
+            }
+
+            $iterator = new DirectoryIterator($dir);
+
+            foreach ($iterator as $item) {
+                if ($item->isDot()) {
+                    continue;
+                }
+
+                $path = $item->getPathname();
+
+                // Remove symlinks
+                if (is_link($path)) {
+                    unlink($path);
+
+                    continue;
+                }
+
+                // Remove copied files/directories with marker files
+                $markerFile = $this->getMarkerPath($path);
+                if (file_exists($markerFile)) {
+                    $this->files->remove($path);
+                    $this->files->remove($markerFile);
+                }
+            }
+        }
+    }
+
+    private function readModeFromComposer(): ?string
+    {
+        $composerJsonPath = dirname($this->vendorDir).'/composer.json';
+
+        return self::readModeFromComposerJson($composerJsonPath);
     }
 
     private function cleanupPackageAssets(string $packageName): void
@@ -413,12 +505,12 @@ class PluginManager
     {
         // Path looks like: /path/to/vendor/vendor-name/package-name/skills
         // We want to extract: vendor-name/package-name
-        $vendorPos = strpos($path, $this->vendorDir);
+        $vendorPos = mb_strpos($path, $this->vendorDir);
         if ($vendorPos === false) {
             return 'unknown';
         }
 
-        $relativePath = substr($path, strlen($this->vendorDir) + 1);
+        $relativePath = mb_substr($path, mb_strlen($this->vendorDir) + 1);
         $parts = explode('/', $relativePath);
 
         if (count($parts) >= 2) {
@@ -610,70 +702,6 @@ class PluginManager
 
         if ($newContent !== $content) {
             file_put_contents($gitignorePath, $newContent);
-        }
-    }
-
-    public function removeAllGitignoreEntries(): void
-    {
-        $gitignorePath = dirname($this->vendorDir).'/.gitignore';
-
-        if (! file_exists($gitignorePath)) {
-            return;
-        }
-
-        $content = file_get_contents($gitignorePath);
-        $lineEnding = str_contains($content, "\r\n") ? "\r\n" : "\n";
-
-        // Find and remove all Claude plugin sections
-        $pattern = '/' . preg_quote($lineEnding, '/') . '?# Claude plugins: [^\s]+ \(start\)' .
-            '.*?' .
-            '# Claude plugins: [^\s]+ \(end\)' . preg_quote($lineEnding, '/') . '?/s';
-
-        $newContent = preg_replace($pattern, '', $content);
-
-        // Clean up any double blank lines that might result
-        $newContent = preg_replace('/(' . preg_quote($lineEnding, '/') . '){3,}/', $lineEnding.$lineEnding, $newContent);
-
-        if ($newContent !== $content) {
-            file_put_contents($gitignorePath, $newContent);
-            $this->io?->write('<info>Removed Claude plugin entries from .gitignore</info>');
-        }
-    }
-
-    public function cleanupAllAssets(): void
-    {
-        $types = ['skills', 'commands', 'agents', 'hooks'];
-
-        foreach ($types as $type) {
-            $dir = $this->claudeDir.'/'.$type;
-
-            if (! $this->files->exists($dir)) {
-                continue;
-            }
-
-            $iterator = new DirectoryIterator($dir);
-
-            foreach ($iterator as $item) {
-                if ($item->isDot()) {
-                    continue;
-                }
-
-                $path = $item->getPathname();
-
-                // Remove symlinks
-                if (is_link($path)) {
-                    unlink($path);
-
-                    continue;
-                }
-
-                // Remove copied files/directories with marker files
-                $markerFile = $this->getMarkerPath($path);
-                if (file_exists($markerFile)) {
-                    $this->files->remove($path);
-                    $this->files->remove($markerFile);
-                }
-            }
         }
     }
 }
