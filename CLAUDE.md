@@ -4,73 +4,99 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Composer plugin for managing Claude Code skills and commands. It automatically installs plugin assets to `.claude/` directories when packages with `type: "claude-plugin"` are installed. Supports two installation modes: **symlink** (default) or **copy**.
+npm package for managing Claude Code skills and commands. It automatically copies plugin assets to `.claude/` directories when plugins are installed. Assets are committed to the repository, making them immediately available in Claude Code for Web sessions.
 
 ## Commands
 
 ```bash
-# Lint/format
-vendor/bin/pint
+# Build
+npm run build
+
+# Development (watch mode)
+npm run dev
 
 # List installed plugins
-vendor/bin/claude-plugins list
+npx claude-plugins list
 
-# Manual install trigger
-vendor/bin/claude-plugins install
+# Manual install/sync
+npx claude-plugins install
 
-# Show/change installation mode
-vendor/bin/claude-plugins mode          # Show current mode
-vendor/bin/claude-plugins mode copy     # Switch to copy mode
-vendor/bin/claude-plugins mode symlink  # Switch to symlink mode
+# Add a plugin manually
+npx claude-plugins add <package-name>
+
+# Remove a plugin
+npx claude-plugins remove <package-name>
 ```
 
 ## Architecture
 
-**Core Components:**
+**Core Modules (in `src/lib/`):**
 
-- `ComposerPlugin` - Composer event subscriber, hooks into `post-install-cmd`/`post-update-cmd`
-- `PluginManager` - Handles installing skills/commands/agents/hooks from vendor packages to `.claude/`, manages `.gitignore` sections, supports symlink and copy modes
+- `manifest.ts` - Reads/writes `.claude/.plugins-manifest.json`, tracks installed plugins and their files
+- `copier.ts` - Copies assets from `node_modules` to `.claude/`, auto-discovers skills/commands/agents/hooks directories
+- `hooks.ts` - Manages the postinstall hook injection into project's `package.json`
 
-**Console Commands (in `src/Console/`):**
+**Entry Points:**
 
-- `InstallCommand` - Runs `composer install` to trigger hooks
-- `ListCommand` - Shows installed skills/commands/agents/hooks with source paths and mode
-- `ModeCommand` - Gets or sets the installation mode (symlink/copy)
+- `cli.ts` - CLI commands (install, add, list, remove)
+- `postinstall.ts` - Runs when claude-manager is installed, injects postinstall hook
+- `index.ts` - Library exports for programmatic usage
 
 **Flow:**
-1. Composer installs package with `type: "claude-plugin"`
-2. `ComposerPlugin::installPlugins()` fires
-3. If no mode configured and interactive: prompts user to choose mode, saves to `composer.json`
-4. `PluginManager` reads mode from `composer.json` extra.claude-manager.mode
-5. Auto-discovers `skills/`, `commands/`, `agents/`, and `hooks/` dirs in package
-6. In symlink mode: creates symlinks, updates `.gitignore`
-7. In copy mode: copies files with marker files, removes gitignore entries
 
-**Note:** The mode setting is global—it applies to all plugins managed by this package, not per-plugin.
+1. User installs a plugin: `npm install @foo/claude-plugin`
+2. Plugin has `claude-manager` as dependency, so manager is installed too
+3. Manager's `postinstall` runs, adds hook to project's `package.json`
+4. Plugin's `postinstall` calls `claude-plugins add`
+5. Manager copies assets to `.claude/` and updates manifest
+6. On future `npm install`, project's postinstall runs `claude-plugins install`
+7. Manager reads manifest, cleans old files, re-copies from all registered plugins
 
-**Installation Modes:**
+**Manifest Structure (`.claude/.plugins-manifest.json`):**
 
-| Mode | Assets | Gitignore | Benefits |
-|------|--------|-----------|----------|
-| `symlink` (default) | Symlinks to vendor/ | Yes | Clean repo, always fresh versions |
-| `copy` | Copied files with `.claude-manager` markers | No | Immediate availability, customizable, git-trackable |
-
-**Mode Configuration (in consuming project's composer.json):**
 ```json
 {
-    "extra": {
-        "claude-manager": {
-            "mode": "copy"
-        }
+  "plugins": {
+    "@foo/claude-nuxt-plugin": {
+      "version": "1.0.0",
+      "files": [
+        "skills/nuxt-skill",
+        "commands/nuxt.md"
+      ]
     }
+  }
 }
 ```
 
 ## Plugin Package Format
 
-Plugins require:
-- `"type": "claude-plugin"` in composer.json
-- `skills/` dir with subdirectories (skill definitions)
-- `commands/` dir with `.md` files (slash commands)
-- `agents/` dir with `.md` files (agent definitions)
-- `hooks/` dir with hook files
+Plugins should:
+- Have `claude-manager` as a dependency
+- Add a postinstall script: `"postinstall": "claude-plugins add"`
+- Include asset directories:
+  - `skills/` - directories containing skill definitions
+  - `commands/` - `.md` files for slash commands
+  - `agents/` - `.md` files for agent definitions
+  - `hooks/` - hook configuration files
+
+**Example plugin package.json:**
+
+```json
+{
+  "name": "@foo/claude-nuxt-plugin",
+  "version": "1.0.0",
+  "dependencies": {
+    "claude-manager": "^1.0.0"
+  },
+  "scripts": {
+    "postinstall": "claude-plugins add"
+  }
+}
+```
+
+## Tech Stack
+
+- TypeScript
+- Node.js 18+
+- tsup for building
+- commander for CLI

@@ -1,7 +1,23 @@
-/vendor/
-composer.lock
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+
+# OS files
 .DS_Store
+
+# IDE
 .idea/
 .vscode/
+
+# Cache
 *.cache
-.phpunit.result.cache
+*.tsbuildinfo
+
+# Logs
+*.log
+npm-debug.log*
+
+# Lock files (optional - some prefer to commit)
+package-lock.json

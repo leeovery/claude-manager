@@ -1,14 +1,13 @@
 <h1 align="center">Claude Manager</h1>
 
 <p align="center">
-  <strong>Composer Plugin for Managing Claude Code Skills & Commands</strong>
+  <strong>npm Package for Managing Claude Code Skills & Commands</strong>
 </p>
 
 <p align="center">
   <a href="#about">About</a> •
   <a href="#installation">Installation</a> •
   <a href="#how-it-works">How It Works</a> •
-  <a href="#installation-modes">Installation Modes</a> •
   <a href="#cli-commands">CLI Commands</a> •
   <a href="#creating-plugins">Creating Plugins</a> •
   <a href="#available-plugins">Available Plugins</a> •
@@ -19,142 +18,66 @@
 
 ## About
 
-Claude Manager is a Composer plugin that automatically manages [Claude Code](https://claude.ai/code) skills, commands, agents, and hooks across your PHP projects.
+Claude Manager is an npm package that automatically manages [Claude Code](https://claude.ai/code) skills, commands, agents, and hooks across your projects.
 
 **What it does:**
 - Automatically installs skills, commands, agents, and hooks from plugin packages into your project's `.claude/` directory
-- Supports two installation modes: **symlink** (default) or **copy**
-- Manages your `.gitignore` based on the installation mode
+- Copies assets so they're committed to your repository and available immediately
+- Works with any project that has a `package.json` (Node.js, Laravel, Nuxt, etc.)
 - Provides CLI tools for listing and managing installed plugins
-- Works seamlessly with Composer's install/update lifecycle
 
 **Why use it?**
 
-Instead of manually copying skill files between projects, you can install them as Composer packages and let the manager handle the rest. Update a skill package once, run `composer update`, and all your projects get the improvements.
+Instead of manually copying skill files between projects, you can install them as npm packages and let the manager handle the rest. Update a skill package once, run `npm update`, and all your projects get the improvements.
+
+**Why npm instead of Composer?**
+
+Most projects—even non-JavaScript ones like Laravel—have a `package.json` for frontend tooling. npm/Node.js is more ubiquitous than PHP/Composer, making this tool accessible to a wider range of projects.
 
 ## Installation
 
-The manager is typically installed automatically as a dependency of plugin packagesbut if you need to install it directly:
+The manager is typically installed automatically as a dependency of plugin packages. When you install a Claude plugin:
 
 ```bash
-composer require --dev leeovery/claude-manager
+npm install @your-org/claude-your-plugin
 ```
 
-That's it. Composer hooks handle everything else.
+The manager will:
+1. Install itself (as a dependency of the plugin)
+2. Add a `postinstall` hook to your `package.json`
+3. Copy the plugin's assets to `.claude/`
+
+That's it. Future `npm install` runs will automatically sync all plugins.
 
 ## How It Works
 
-1. Plugin packages declare `type: "claude-plugin"` in their composer.json
-2. When Composer installs or updates packages, the manager hooks are triggered
-3. The manager scans for all installed `claude-plugin` packages
-4. Skills directories are symlinked to `.claude/skills/`
-5. Command files are symlinked to `.claude/commands/`
-6. Agent files are symlinked to `.claude/agents/`
-7. Hook files are symlinked to `.claude/hooks/`
-8. Your `.gitignore` is automatically updated to exclude symlinked plugins
-9. Claude Code discovers them automatically
+1. Plugin packages have `claude-manager` as a dependency
+2. Plugins register themselves via their `postinstall` script
+3. The manager copies skills, commands, agents, and hooks to `.claude/`
+4. A manifest (`.claude/.plugins-manifest.json`) tracks what's installed
+5. On updates, old files are removed and fresh copies are made
+6. Claude Code discovers them automatically
 
 **After installation, your project structure looks like:**
 
 ```
 your-project/
 ├── .claude/
+│   ├── .plugins-manifest.json
 │   ├── skills/
-│   │   └── laravel-actions → ../../vendor/leeovery/claude-laravel/skills/laravel-actions
+│   │   └── laravel-actions/
+│   │       └── skill.md
 │   ├── commands/
-│   │   └── artisan-make.md → ../../vendor/leeovery/claude-laravel/commands/artisan-make.md
+│   │   └── artisan-make.md
 │   ├── agents/
-│   │   └── code-reviewer.md → ../../vendor/leeovery/claude-laravel/agents/code-reviewer.md
+│   │   └── code-reviewer.md
 │   └── hooks/
-│       └── pre-commit.sh → ../../vendor/leeovery/claude-laravel/hooks/pre-commit.sh
-├── vendor/
-│   └── leeovery/
-│       ├── claude-manager/
-│       └── claude-laravel/
-└── composer.json
+│       └── pre-commit.sh
+├── node_modules/
+│   └── @your-org/
+│       └── claude-your-plugin/
+└── package.json
 ```
-
-## Installation Modes
-
-The manager supports two installation modes. On first install, you'll be prompted to choose:
-
-```
-Choose installation mode for Claude plugins:
-
-  [1] symlink - Creates symlinks to vendor packages (default)
-                Assets are gitignored and always stay up-to-date
-
-  [2] copy    - Copies files from vendor packages
-                Assets are committed to git and work immediately
-                Recommended for Claude Code on the web
-
-Select mode [1]:
-```
-
-Your choice is saved to `composer.json` and applied to all plugins managed by this package.
-
-### Symlink Mode (Default)
-
-Assets are symlinked from `vendor/` to `.claude/` and automatically gitignored.
-
-**Benefits:**
-- Keeps your repository clean—plugin assets stay in vendor/
-- Always get fresh versions when packages are updated
-- No merge conflicts with upstream changes
-
-```bash
-# This is the default behavior - no configuration needed
-```
-
-### Copy Mode
-
-Assets are copied to `.claude/` and become part of your repository.
-
-**Benefits:**
-- Assets are available immediately without running `composer install`
-- You can customize and modify installed skills, commands, agents, and hooks
-- Use git to track your changes and handle conflicts with upstream updates
-
-```bash
-# Switch to copy mode
-vendor/bin/claude-plugins mode copy
-```
-
-This updates your `composer.json`:
-
-```json
-{
-    "extra": {
-        "claude-manager": {
-            "mode": "copy"
-        }
-    }
-}
-```
-
-### Mode Comparison
-
-| Aspect | Symlink Mode | Copy Mode |
-|--------|--------------|-----------|
-| Assets | Symlinks to vendor/ | Copied files in repository |
-| Gitignore | Yes (auto-managed) | No (assets can be committed) |
-| Customization | Edit vendor files (not recommended) | Edit directly, track with git |
-| Updates | Automatic on composer update | Overwrites on composer update |
-
-### Switching Modes
-
-```bash
-# Show current mode
-vendor/bin/claude-plugins mode
-
-# Switch to copy mode (removes gitignore entries, copies files)
-vendor/bin/claude-plugins mode copy
-
-# Switch to symlink mode (adds gitignore entries, creates symlinks)
-vendor/bin/claude-plugins mode symlink
-```
-
-> **Note:** In copy mode, plugin assets are overwritten during `composer update`. Use git to track your local changes—you can review diffs and resolve conflicts just like any other code update.
 
 ## CLI Commands
 
@@ -162,72 +85,39 @@ The manager provides a CLI tool for managing plugins:
 
 | Command | Description |
 |---------|-------------|
-| `vendor/bin/claude-plugins list` | Show all installed skills, commands, agents, and hooks with their source paths and mode |
-| `vendor/bin/claude-plugins install` | Manually trigger plugin installation (usually not needed) |
-| `vendor/bin/claude-plugins mode` | Show current installation mode |
-| `vendor/bin/claude-plugins mode copy` | Switch to copy mode |
-| `vendor/bin/claude-plugins mode symlink` | Switch to symlink mode |
+| `npx claude-plugins list` | Show all installed plugins and their assets |
+| `npx claude-plugins install` | Sync all plugins from manifest (runs automatically on npm install) |
+| `npx claude-plugins add <package>` | Manually add a plugin |
+| `npx claude-plugins remove <package>` | Remove a plugin and its assets |
 
 ## Creating Plugins
 
-Want to create your own skill or command packages? The easiest way is to use the included scaffolding script.
+Want to create your own skill or command packages?
 
-### Quick Start with create-plugin
+### Plugin Requirements
 
-Clone this repository and run the `create-plugin` script:
+1. Have `claude-manager` as a dependency
+2. Add a `postinstall` script that calls `claude-plugins add`
+3. Include asset directories (`skills/`, `commands/`, `agents/`, `hooks/`)
 
-```bash
-git clone https://github.com/leeovery/claude-manager.git
-cd claude-manager
-./create-plugin claude-my-skills
-```
-
-This creates a new plugin package in a sibling directory with:
-
-- Correct directory structure (`skills/`, `commands/`, `agents/`, `hooks/`)
-- Pre-configured `composer.json` with `type: "claude-plugin"`
-- Basic `.gitignore` and `README.md`
-- [Anthropic's skill-creator](https://github.com/anthropics/skills/tree/main/skill-creator) skill installed locally to help you write new skills
-- Git repository initialized
-
-Then just:
-
-```bash
-cd ../claude-my-skills
-composer install
-```
-
-You're ready to start creating skills with Claude Code's help via the bundled skill-creator.
-
-### Manual Setup
-
-If you prefer to set things up manually:
-
-#### Plugin Requirements
-
-1. Set `type: "claude-plugin"` in composer.json
-2. Require `leeovery/claude-manager` as a dependency
-3. Include a `skills/` directory with skill subdirectories, and/or
-4. Include a `commands/` directory with `.md` command files, and/or
-5. Include an `agents/` directory with `.md` agent files, and/or
-6. Include a `hooks/` directory with hook files
-
-#### Example composer.json
+### Example package.json
 
 ```json
 {
-    "name": "your-vendor/claude-your-skills",
+    "name": "@your-org/claude-your-skills",
+    "version": "1.0.0",
     "description": "Your custom skills for Claude Code",
-    "type": "claude-plugin",
     "license": "MIT",
-    "require": {
-        "php": "^8.2",
-        "leeovery/claude-manager": "^1.0"
+    "dependencies": {
+        "claude-manager": "^1.0.0"
+    },
+    "scripts": {
+        "postinstall": "claude-plugins add"
     }
 }
 ```
 
-#### Plugin Structure
+### Plugin Structure
 
 ```
 your-plugin/
@@ -243,7 +133,7 @@ your-plugin/
 │   └── agent-one.md
 ├── hooks/
 │   └── pre-commit.sh
-└── composer.json
+└── package.json
 ```
 
 The manager auto-discovers `skills/`, `commands/`, `agents/`, and `hooks/` directories—no additional configuration needed.
@@ -252,46 +142,44 @@ The manager auto-discovers `skills/`, `commands/`, `agents/`, and `hooks/` direc
 
 | Package | Description |
 |---------|-------------|
-| [claude-laravel](https://github.com/leeovery/claude-laravel) | Opinionated Laravel development patterns and practices |
-| [claude-nuxt](https://github.com/leeovery/claude-nuxt) | Nuxt.js development skills for Claude Code |
-| [claude-technical-workflows](https://github.com/leeovery/claude-technical-workflows) | Technical workflow skills for Claude Code |
+| Coming soon | Be the first to create a plugin! |
 
-*More plugins coming soon!*
+## Manifest
 
-## Automatic Gitignore Management
+The manager tracks installed plugins in `.claude/.plugins-manifest.json`:
 
-In **symlink mode** (default), the manager automatically updates your project's `.gitignore` to exclude symlinked plugins while preserving any custom skills, commands, agents, and hooks you create.
-
-**What gets added:**
-```gitignore
-# Claude plugins: leeovery/claude-laravel (start)
-/.claude/skills/laravel-actions
-/.claude/commands/artisan-make.md
-/.claude/agents/code-reviewer.md
-/.claude/hooks/pre-commit.sh
-# Claude plugins: leeovery/claude-laravel (end)
+```json
+{
+  "plugins": {
+    "@your-org/claude-laravel": {
+      "version": "1.0.0",
+      "files": [
+        "skills/laravel-actions",
+        "commands/artisan-make.md"
+      ]
+    }
+  }
+}
 ```
 
-**This ensures:**
-- Symlinked plugins from vendor packages are ignored
-- Custom/local skills, commands, agents, and hooks you create can still be committed
-- The `.claude/` directory itself remains in version control
-
-In **copy mode**, gitignore entries are automatically removed, allowing copied assets to be committed to your repository.
+This file should be committed to your repository. It ensures:
+- Plugins are synced correctly on `npm install`
+- Old files are cleaned up when plugins are updated or removed
+- You can see what's installed at a glance
 
 ## Troubleshooting
 
-### Symlinks not created
+### Assets not copied
 
 Run the install command manually:
 
 ```bash
-vendor/bin/claude-plugins install
+npx claude-plugins install
 ```
 
 ### Skills not showing in Claude Code
 
-Check that `.claude/skills/`, `.claude/commands/`, `.claude/agents/`, and `.claude/hooks/` exist and contain symlinks:
+Check that `.claude/` directories exist and contain files:
 
 ```bash
 ls -la .claude/skills/
@@ -302,15 +190,27 @@ ls -la .claude/hooks/
 
 ### Plugin not detected
 
-Verify the plugin's composer.json has:
-- `"type": "claude-plugin"`
-- `leeovery/claude-manager` as a dependency
+Verify the plugin's package.json has:
+- `claude-manager` as a dependency
+- A `postinstall` script that calls `claude-plugins add`
 - A `skills/`, `commands/`, `agents/`, or `hooks/` directory with content
+
+### Postinstall hook not added
+
+If your project's `package.json` doesn't have the postinstall hook, add it manually:
+
+```json
+{
+  "scripts": {
+    "postinstall": "claude-plugins install"
+  }
+}
+```
 
 ## Requirements
 
-- PHP ^8.2
-- Composer ^2.0
+- Node.js >= 18.0.0
+- npm, pnpm, or yarn
 
 ## Contributing
 
