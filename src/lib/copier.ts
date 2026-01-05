@@ -1,5 +1,6 @@
 import { existsSync, mkdirSync, cpSync, readdirSync, statSync, readFileSync } from 'node:fs';
-import { join, basename } from 'node:path';
+import { createRequire } from 'node:module';
+import { dirname, join, basename } from 'node:path';
 
 const ASSET_DIRS = ['skills', 'commands', 'agents', 'hooks'] as const;
 type AssetDir = typeof ASSET_DIRS[number];
@@ -94,14 +95,20 @@ export function findPluginInNodeModules(
   packageName: string,
   projectRoot: string
 ): string | null {
-  // Handle scoped packages (@org/package)
-  const packagePath = join(projectRoot, 'node_modules', packageName);
-
-  if (existsSync(packagePath)) {
-    return packagePath;
+  // Standard node_modules path (npm, pnpm, yarn classic, bun)
+  const standardPath = join(projectRoot, 'node_modules', packageName);
+  if (existsSync(standardPath)) {
+    return standardPath;
   }
 
-  return null;
+  // Fallback: use Node's require.resolve for yarn PnP and other setups
+  try {
+    const require = createRequire(join(projectRoot, 'package.json'));
+    const resolved = require.resolve(`${packageName}/package.json`);
+    return dirname(resolved);
+  } catch {
+    return null;
+  }
 }
 
 export function hasAssets(packagePath: string): boolean {

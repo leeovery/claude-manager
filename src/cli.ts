@@ -1,6 +1,20 @@
 import { program } from 'commander';
-import { existsSync, rmSync } from 'node:fs';
-import { join, resolve } from 'node:path';
+import { existsSync, readFileSync, rmSync } from 'node:fs';
+import { dirname, join, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
+
+function getVersion(): string {
+  try {
+    // In dist/, package.json is one level up
+    const pkgPath = join(__dirname, '..', 'package.json');
+    const pkg = JSON.parse(readFileSync(pkgPath, 'utf-8'));
+    return pkg.version || '0.0.0';
+  } catch {
+    return '0.0.0';
+  }
+}
 import {
   readManifest,
   writeManifest,
@@ -32,7 +46,7 @@ function findProjectRoot(): string {
 program
   .name('claude-plugins')
   .description('Plugin manager for Claude Code skills and commands')
-  .version('1.0.0');
+  .version(getVersion());
 
 program
   .command('install')
