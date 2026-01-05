@@ -14,6 +14,7 @@ export {
   copyPluginAssets,
   findPluginInNodeModules,
   hasAssets,
+  getPackageVersion,
 } from './lib/copier.js';
 
 export {

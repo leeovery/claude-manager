@@ -26,6 +26,7 @@ import {
   copyPluginAssets,
   findPluginInNodeModules,
   hasAssets,
+  getPackageVersion,
 } from './lib/copier.js';
 import { injectPrepareHook } from './lib/hooks.js';
 
@@ -51,7 +52,8 @@ program
 program
   .command('install')
   .description('Sync all plugins from manifest to .claude directory')
-  .action(() => {
+  .option('-f, --force', 'Force sync even if versions match')
+  .action((options: { force?: boolean }) => {
     const projectRoot = findProjectRoot();
     const manifest = readManifest(projectRoot);
 
@@ -61,7 +63,37 @@ program
       return;
     }
 
-    console.log('Syncing Claude plugins...');
+    // Check if any plugins have changed (unless --force)
+    if (!options.force) {
+      let needsSync = false;
+      let reason = '';
+
+      for (const [packageName, entry] of Object.entries(manifest.plugins)) {
+        const packagePath = findPluginInNodeModules(packageName, projectRoot);
+
+        if (!packagePath) {
+          needsSync = true;
+          reason = `${packageName} was uninstalled`;
+          break;
+        }
+
+        const currentVersion = getPackageVersion(packagePath);
+        if (currentVersion !== entry.version) {
+          needsSync = true;
+          reason = `${packageName} changed (${entry.version} → ${currentVersion})`;
+          break;
+        }
+      }
+
+      if (!needsSync) {
+        console.log('All plugins up to date.');
+        return;
+      }
+
+      console.log(`Syncing Claude plugins (${reason})...`);
+    } else {
+      console.log('Syncing Claude plugins (forced)...');
+    }
 
     // Clean up existing files from manifest
     const removedFiles = cleanupManifestFiles(projectRoot);

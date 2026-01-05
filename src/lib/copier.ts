@@ -10,7 +10,7 @@ interface CopyResult {
   version: string;
 }
 
-function getPackageVersion(packagePath: string): string {
+export function getPackageVersion(packagePath: string): string {
   try {
     const pkgJson = JSON.parse(readFileSync(join(packagePath, 'package.json'), 'utf-8'));
     return pkgJson.version || '0.0.0';
