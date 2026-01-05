@@ -21,8 +21,15 @@ export {
   injectPrepareHook,
   hasPrepareHook,
   removePrepareHook,
-  // Legacy aliases
-  injectPostinstallHook,
-  hasPostinstallHook,
-  removePostinstallHook,
 } from './lib/hooks.js';
+
+export {
+  syncPlugins,
+  addPluginToProject,
+  listPlugins,
+  removePluginFromProject,
+  type SyncResult,
+  type AddResult,
+  type ListResult,
+  type RemoveResult,
+} from './lib/sync.js';

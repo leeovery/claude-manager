@@ -1,13 +1,21 @@
+#!/usr/bin/env node
+
 import { program } from 'commander';
-import { existsSync, readFileSync, rmSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+
+import {
+  syncPlugins,
+  addPluginToProject,
+  listPlugins,
+  removePluginFromProject,
+} from './lib/sync.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
 function getVersion(): string {
   try {
-    // In dist/, package.json is one level up
     const pkgPath = join(__dirname, '..', 'package.json');
     const pkg = JSON.parse(readFileSync(pkgPath, 'utf-8'));
     return pkg.version || '0.0.0';
@@ -15,23 +23,8 @@ function getVersion(): string {
     return '0.0.0';
   }
 }
-import {
-  readManifest,
-  writeManifest,
-  cleanupManifestFiles,
-  addPlugin,
-  getPlugins,
-} from './lib/manifest.js';
-import {
-  copyPluginAssets,
-  findPluginInNodeModules,
-  hasAssets,
-  getPackageVersion,
-} from './lib/copier.js';
-import { injectPrepareHook } from './lib/hooks.js';
 
 function findProjectRoot(): string {
-  // Start from cwd and walk up to find package.json
   let dir = process.cwd();
 
   while (dir !== '/') {
@@ -55,112 +48,36 @@ program
   .option('-f, --force', 'Force sync even if versions match')
   .action((options: { force?: boolean }) => {
     const projectRoot = findProjectRoot();
-    const manifest = readManifest(projectRoot);
+    const result = syncPlugins(projectRoot, options);
 
-    const pluginCount = Object.keys(manifest.plugins).length;
-    if (pluginCount === 0) {
-      console.log('No plugins to sync.');
+    if (!result.synced) {
+      console.log(result.reason || 'Nothing to sync.');
       return;
     }
 
-    // Check if any plugins have changed (unless --force)
-    if (!options.force) {
-      let needsSync = false;
-      let reason = '';
-
-      for (const [packageName, entry] of Object.entries(manifest.plugins)) {
-        const packagePath = findPluginInNodeModules(packageName, projectRoot);
-
-        if (!packagePath) {
-          needsSync = true;
-          reason = `${packageName} was uninstalled`;
-          break;
-        }
-
-        const currentVersion = getPackageVersion(packagePath);
-        if (currentVersion !== entry.version) {
-          needsSync = true;
-          reason = `${packageName} changed (${entry.version} → ${currentVersion})`;
-          break;
-        }
-      }
-
-      if (!needsSync) {
-        console.log('All plugins up to date.');
-        return;
-      }
-
-      console.log(`Syncing Claude plugins (${reason})...`);
-    } else {
+    if (options.force) {
       console.log('Syncing Claude plugins (forced)...');
     }
 
-    // Clean up existing files from manifest
-    const removedFiles = cleanupManifestFiles(projectRoot);
-    if (removedFiles.length > 0) {
-      console.log(`  Cleaned up ${removedFiles.length} old files`);
+    for (const plugin of result.installedPlugins) {
+      console.log(`  Installed ${plugin.name}@${plugin.version} (${plugin.fileCount} files)`);
     }
 
-    // Re-copy all plugins from manifest
-    const newManifest = { plugins: {} as Record<string, { version: string; files: string[] }> };
-    const fileOwnership = new Map<string, string>(); // file -> packageName
-    const conflicts: string[] = [];
-    let totalFiles = 0;
-    let removedPlugins: string[] = [];
-
-    for (const [packageName, entry] of Object.entries(manifest.plugins)) {
-      const packagePath = findPluginInNodeModules(packageName, projectRoot);
-
-      if (!packagePath) {
-        removedPlugins.push(packageName);
-        continue;
-      }
-
-      if (!hasAssets(packagePath)) {
-        console.log(`  Skipping ${packageName} (no assets)`);
-        continue;
-      }
-
-      const result = copyPluginAssets(packagePath, projectRoot);
-
-      if (result.files.length > 0) {
-        // Check for conflicts
-        for (const file of result.files) {
-          const existingOwner = fileOwnership.get(file);
-          if (existingOwner) {
-            conflicts.push(`  ${file} (${existingOwner} vs ${packageName})`);
-          }
-          fileOwnership.set(file, packageName);
-        }
-
-        newManifest.plugins[packageName] = {
-          version: result.version,
-          files: result.files,
-        };
-        totalFiles += result.files.length;
-        console.log(`  Installed ${packageName}@${result.version} (${result.files.length} files)`);
-      }
-    }
-
-    writeManifest(projectRoot, newManifest);
-
-    // Report removed plugins
-    if (removedPlugins.length > 0) {
-      console.log(`\nRemoved ${removedPlugins.length} uninstalled plugin(s) from manifest:`);
-      for (const name of removedPlugins) {
+    if (result.removedPlugins.length > 0) {
+      console.log(`\nRemoved ${result.removedPlugins.length} uninstalled plugin(s) from manifest:`);
+      for (const name of result.removedPlugins) {
         console.log(`  - ${name}`);
       }
     }
 
-    // Report conflicts
-    if (conflicts.length > 0) {
-      console.log(`\nWarning: ${conflicts.length} file conflict(s) detected (later plugin overwrote earlier):`);
-      for (const conflict of conflicts) {
-        console.log(conflict);
+    if (result.conflicts.length > 0) {
+      console.log(`\nWarning: ${result.conflicts.length} file conflict(s) detected (later plugin overwrote earlier):`);
+      for (const conflict of result.conflicts) {
+        console.log(`  ${conflict}`);
       }
     }
 
-    console.log(`\nDone. ${totalFiles} files from ${Object.keys(newManifest.plugins).length} plugin(s).`);
+    console.log(`\nDone. ${result.totalFiles} files from ${result.pluginCount} plugin(s).`);
   });
 
 program
@@ -169,8 +86,6 @@ program
   .argument('[package]', 'Package name (auto-detected if run from postinstall)')
   .action((packageArg?: string) => {
     const projectRoot = findProjectRoot();
-
-    // Try to detect package name from npm environment or argument
     const packageName = packageArg || process.env.npm_package_name;
 
     if (!packageName) {
@@ -179,48 +94,25 @@ program
       process.exit(1);
     }
 
-    // Ensure prepare hook is set up (runs on both npm install and npm update)
-    if (injectPrepareHook(projectRoot)) {
+    const result = addPluginToProject(projectRoot, packageName);
+
+    if (result.hookInjected) {
       console.log('Added prepare hook to package.json');
     }
 
-    const packagePath = findPluginInNodeModules(packageName, projectRoot);
-
-    if (!packagePath) {
-      console.error(`Error: Package ${packageName} not found in node_modules`);
+    if (!result.success) {
+      console.error(`Error: ${result.error}`);
       process.exit(1);
     }
 
-    if (!hasAssets(packagePath)) {
+    if (result.files.length === 0) {
       console.log(`Package ${packageName} has no Claude assets to install.`);
       return;
     }
 
-    // Clean up any existing files for this plugin
-    const manifest = readManifest(projectRoot);
-    const existing = manifest.plugins[packageName];
-
-    if (existing) {
-      const claudeDir = join(projectRoot, '.claude');
-      for (const file of existing.files) {
-        const fullPath = join(claudeDir, file);
-        if (existsSync(fullPath)) {
-          rmSync(fullPath, { recursive: true, force: true });
-        }
-      }
-    }
-
-    // Copy assets
-    const result = copyPluginAssets(packagePath, projectRoot);
-
-    if (result.files.length > 0) {
-      addPlugin(projectRoot, packageName, result.version, result.files);
-      console.log(`Installed ${packageName}@${result.version}:`);
-      for (const file of result.files) {
-        console.log(`  .claude/${file}`);
-      }
-    } else {
-      console.log(`No assets installed from ${packageName}`);
+    console.log(`Installed ${packageName}@${result.version}:`);
+    for (const file of result.files) {
+      console.log(`  .claude/${file}`);
     }
   });
 
@@ -229,9 +121,8 @@ program
   .description('List installed plugins and their assets')
   .action(() => {
     const projectRoot = findProjectRoot();
-    const plugins = getPlugins(projectRoot);
-
-    const pluginNames = Object.keys(plugins);
+    const result = listPlugins(projectRoot);
+    const pluginNames = Object.keys(result.plugins);
 
     if (pluginNames.length === 0) {
       console.log('No plugins installed.');
@@ -240,7 +131,7 @@ program
 
     console.log('Installed Claude plugins:\n');
 
-    for (const [packageName, entry] of Object.entries(plugins)) {
+    for (const [packageName, entry] of Object.entries(result.plugins)) {
       console.log(`${packageName}@${entry.version}`);
       for (const file of entry.files) {
         console.log(`  .claude/${file}`);
@@ -255,28 +146,16 @@ program
   .argument('<package>', 'Package name to remove')
   .action((packageName: string) => {
     const projectRoot = findProjectRoot();
-    const manifest = readManifest(projectRoot);
-    const entry = manifest.plugins[packageName];
+    const result = removePluginFromProject(projectRoot, packageName);
 
-    if (!entry) {
-      console.error(`Plugin ${packageName} is not installed.`);
+    if (!result.success) {
+      console.error(result.error);
       process.exit(1);
     }
 
-    const claudeDir = join(projectRoot, '.claude');
-
-    // Remove files
-    for (const file of entry.files) {
-      const fullPath = join(claudeDir, file);
-      if (existsSync(fullPath)) {
-        rmSync(fullPath, { recursive: true, force: true });
-        console.log(`Removed .claude/${file}`);
-      }
+    for (const file of result.filesRemoved) {
+      console.log(`Removed .claude/${file}`);
     }
-
-    // Update manifest
-    delete manifest.plugins[packageName];
-    writeManifest(projectRoot, manifest);
 
     console.log(`Removed ${packageName}`);
   });
