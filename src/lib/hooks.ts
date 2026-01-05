@@ -114,7 +114,3 @@ export function removePrepareHook(projectRoot: string): boolean {
   }
 }
 
-// Legacy aliases for backwards compatibility
-export const injectPostinstallHook = injectPrepareHook;
-export const hasPostinstallHook = hasPrepareHook;
-export const removePostinstallHook = removePrepareHook;

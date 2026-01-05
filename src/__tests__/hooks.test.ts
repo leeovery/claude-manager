@@ -6,10 +6,6 @@ import {
   injectPrepareHook,
   hasPrepareHook,
   removePrepareHook,
-  // Legacy aliases
-  injectPostinstallHook,
-  hasPostinstallHook,
-  removePostinstallHook,
 } from '../lib/hooks.js';
 
 describe('hooks', () => {
@@ -265,17 +261,4 @@ describe('hooks', () => {
     });
   });
 
-  describe('legacy aliases', () => {
-    it('injectPostinstallHook is an alias for injectPrepareHook', () => {
-      expect(injectPostinstallHook).toBe(injectPrepareHook);
-    });
-
-    it('hasPostinstallHook is an alias for hasPrepareHook', () => {
-      expect(hasPostinstallHook).toBe(hasPrepareHook);
-    });
-
-    it('removePostinstallHook is an alias for removePrepareHook', () => {
-      expect(removePostinstallHook).toBe(removePrepareHook);
-    });
-  });
 });
