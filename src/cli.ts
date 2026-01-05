@@ -54,25 +54,33 @@ program
   .action(() => {
     const projectRoot = findProjectRoot();
     const manifest = readManifest(projectRoot);
-    const claudeDir = join(projectRoot, '.claude');
+
+    const pluginCount = Object.keys(manifest.plugins).length;
+    if (pluginCount === 0) {
+      console.log('No plugins to sync.');
+      return;
+    }
 
     console.log('Syncing Claude plugins...');
 
     // Clean up existing files from manifest
     const removedFiles = cleanupManifestFiles(projectRoot);
     if (removedFiles.length > 0) {
-      console.log(`  Removed ${removedFiles.length} old files`);
+      console.log(`  Cleaned up ${removedFiles.length} old files`);
     }
 
     // Re-copy all plugins from manifest
     const newManifest = { plugins: {} as Record<string, { version: string; files: string[] }> };
+    const fileOwnership = new Map<string, string>(); // file -> packageName
+    const conflicts: string[] = [];
     let totalFiles = 0;
+    let removedPlugins: string[] = [];
 
     for (const [packageName, entry] of Object.entries(manifest.plugins)) {
       const packagePath = findPluginInNodeModules(packageName, projectRoot);
 
       if (!packagePath) {
-        console.log(`  Skipping ${packageName} (not found in node_modules)`);
+        removedPlugins.push(packageName);
         continue;
       }
 
@@ -84,6 +92,15 @@ program
       const result = copyPluginAssets(packagePath, projectRoot);
 
       if (result.files.length > 0) {
+        // Check for conflicts
+        for (const file of result.files) {
+          const existingOwner = fileOwnership.get(file);
+          if (existingOwner) {
+            conflicts.push(`  ${file} (${existingOwner} vs ${packageName})`);
+          }
+          fileOwnership.set(file, packageName);
+        }
+
         newManifest.plugins[packageName] = {
           version: result.version,
           files: result.files,
@@ -94,7 +111,24 @@ program
     }
 
     writeManifest(projectRoot, newManifest);
-    console.log(`Done. ${totalFiles} files installed from ${Object.keys(newManifest.plugins).length} plugins.`);
+
+    // Report removed plugins
+    if (removedPlugins.length > 0) {
+      console.log(`\nRemoved ${removedPlugins.length} uninstalled plugin(s) from manifest:`);
+      for (const name of removedPlugins) {
+        console.log(`  - ${name}`);
+      }
+    }
+
+    // Report conflicts
+    if (conflicts.length > 0) {
+      console.log(`\nWarning: ${conflicts.length} file conflict(s) detected (later plugin overwrote earlier):`);
+      for (const conflict of conflicts) {
+        console.log(conflict);
+      }
+    }
+
+    console.log(`\nDone. ${totalFiles} files from ${Object.keys(newManifest.plugins).length} plugin(s).`);
   });
 
 program
