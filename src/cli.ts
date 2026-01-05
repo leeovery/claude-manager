@@ -27,7 +27,7 @@ import {
   findPluginInNodeModules,
   hasAssets,
 } from './lib/copier.js';
-import { injectPostinstallHook } from './lib/hooks.js';
+import { injectPrepareHook } from './lib/hooks.js';
 
 function findProjectRoot(): string {
   // Start from cwd and walk up to find package.json
@@ -147,9 +147,9 @@ program
       process.exit(1);
     }
 
-    // Ensure postinstall hook is set up
-    if (injectPostinstallHook(projectRoot)) {
-      console.log('Added postinstall hook to package.json');
+    // Ensure prepare hook is set up (runs on both npm install and npm update)
+    if (injectPrepareHook(projectRoot)) {
+      console.log('Added prepare hook to package.json');
     }
 
     const packagePath = findPluginInNodeModules(packageName, projectRoot);

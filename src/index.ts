@@ -17,6 +17,10 @@ export {
 } from './lib/copier.js';
 
 export {
+  injectPrepareHook,
+  hasPrepareHook,
+  removePrepareHook,
+  // Legacy aliases
   injectPostinstallHook,
   hasPostinstallHook,
   removePostinstallHook,

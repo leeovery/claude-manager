@@ -2,13 +2,18 @@ import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 const HOOK_COMMAND = 'claude-plugins install';
+// Use 'prepare' instead of 'postinstall' because prepare runs after BOTH:
+// - npm install
+// - npm update
+// This ensures plugins are always synced regardless of which command is used.
+const HOOK_NAME = 'prepare';
 
 interface PackageJson {
   scripts?: Record<string, string>;
   [key: string]: unknown;
 }
 
-export function injectPostinstallHook(projectRoot: string): boolean {
+export function injectPrepareHook(projectRoot: string): boolean {
   const packageJsonPath = join(projectRoot, 'package.json');
 
   if (!existsSync(packageJsonPath)) {
@@ -23,18 +28,18 @@ export function injectPostinstallHook(projectRoot: string): boolean {
       pkg.scripts = {};
     }
 
-    const existingPostinstall = pkg.scripts.postinstall;
+    const existingHook = pkg.scripts[HOOK_NAME];
 
     // Check if already has our hook
-    if (existingPostinstall?.includes(HOOK_COMMAND)) {
+    if (existingHook?.includes(HOOK_COMMAND)) {
       return false; // Already installed
     }
 
-    // Add or append to postinstall
-    if (existingPostinstall) {
-      pkg.scripts.postinstall = `${existingPostinstall} && ${HOOK_COMMAND}`;
+    // Add or append to hook
+    if (existingHook) {
+      pkg.scripts[HOOK_NAME] = `${existingHook} && ${HOOK_COMMAND}`;
     } else {
-      pkg.scripts.postinstall = HOOK_COMMAND;
+      pkg.scripts[HOOK_NAME] = HOOK_COMMAND;
     }
 
     // Write back with same formatting
@@ -46,7 +51,7 @@ export function injectPostinstallHook(projectRoot: string): boolean {
   }
 }
 
-export function hasPostinstallHook(projectRoot: string): boolean {
+export function hasPrepareHook(projectRoot: string): boolean {
   const packageJsonPath = join(projectRoot, 'package.json');
 
   if (!existsSync(packageJsonPath)) {
@@ -57,13 +62,13 @@ export function hasPostinstallHook(projectRoot: string): boolean {
     const content = readFileSync(packageJsonPath, 'utf-8');
     const pkg: PackageJson = JSON.parse(content);
 
-    return pkg.scripts?.postinstall?.includes(HOOK_COMMAND) ?? false;
+    return pkg.scripts?.[HOOK_NAME]?.includes(HOOK_COMMAND) ?? false;
   } catch {
     return false;
   }
 }
 
-export function removePostinstallHook(projectRoot: string): boolean {
+export function removePrepareHook(projectRoot: string): boolean {
   const packageJsonPath = join(projectRoot, 'package.json');
 
   if (!existsSync(packageJsonPath)) {
@@ -74,26 +79,26 @@ export function removePostinstallHook(projectRoot: string): boolean {
     const content = readFileSync(packageJsonPath, 'utf-8');
     const pkg: PackageJson = JSON.parse(content);
 
-    if (!pkg.scripts?.postinstall) {
+    if (!pkg.scripts?.[HOOK_NAME]) {
       return false;
     }
 
-    const postinstall = pkg.scripts.postinstall;
+    const hook = pkg.scripts[HOOK_NAME];
 
-    if (!postinstall.includes(HOOK_COMMAND)) {
+    if (!hook.includes(HOOK_COMMAND)) {
       return false;
     }
 
-    // Remove our hook from the postinstall script
-    let newPostinstall = postinstall
+    // Remove our hook from the script
+    let newHook = hook
       .replace(` && ${HOOK_COMMAND}`, '')
       .replace(`${HOOK_COMMAND} && `, '')
       .replace(HOOK_COMMAND, '');
 
-    if (newPostinstall.trim() === '') {
-      delete pkg.scripts.postinstall;
+    if (newHook.trim() === '') {
+      delete pkg.scripts[HOOK_NAME];
     } else {
-      pkg.scripts.postinstall = newPostinstall.trim();
+      pkg.scripts[HOOK_NAME] = newHook.trim();
     }
 
     // Clean up empty scripts object
@@ -108,3 +113,8 @@ export function removePostinstallHook(projectRoot: string): boolean {
     return false;
   }
 }
+
+// Legacy aliases for backwards compatibility
+export const injectPostinstallHook = injectPrepareHook;
+export const hasPostinstallHook = hasPrepareHook;
+export const removePostinstallHook = removePrepareHook;

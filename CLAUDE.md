@@ -34,22 +34,22 @@ npx claude-plugins remove <package-name>
 
 - `manifest.ts` - Reads/writes `.claude/.plugins-manifest.json`, tracks installed plugins and their files
 - `copier.ts` - Copies assets from `node_modules` to `.claude/`, auto-discovers skills/commands/agents/hooks directories
-- `hooks.ts` - Manages the postinstall hook injection into project's `package.json`
+- `hooks.ts` - Manages the `prepare` hook injection into project's `package.json` (runs on both `npm install` and `npm update`)
 
 **Entry Points:**
 
 - `cli.ts` - CLI commands (install, add, list, remove)
-- `postinstall.ts` - Runs when claude-manager is installed, injects postinstall hook
+- `postinstall.ts` - Runs when claude-manager is installed, injects prepare hook
 - `index.ts` - Library exports for programmatic usage
 
 **Flow:**
 
 1. User installs a plugin: `npm install @foo/claude-plugin`
 2. Plugin has `claude-manager` as dependency, so manager is installed too
-3. Manager's `postinstall` runs, adds hook to project's `package.json`
+3. Manager's `postinstall` runs, adds `prepare` hook to project's `package.json`
 4. Plugin's `postinstall` calls `claude-plugins add`
 5. Manager copies assets to `.claude/` and updates manifest
-6. On future `npm install`, project's postinstall runs `claude-plugins install`
+6. On future `npm install` or `npm update`, project's `prepare` hook runs `claude-plugins install`
 7. Manager reads manifest, cleans old files, re-copies from all registered plugins
 
 **Manifest Structure (`.claude/.plugins-manifest.json`):**
@@ -86,7 +86,7 @@ Plugins should:
   "name": "@foo/claude-nuxt-plugin",
   "version": "1.0.0",
   "dependencies": {
-    "claude-manager": "^1.0.0"
+    "claude-manager": "^2.0.0"
   },
   "scripts": {
     "postinstall": "claude-plugins add"

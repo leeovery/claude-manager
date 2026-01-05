@@ -30,10 +30,6 @@ Claude Manager is an npm package that automatically manages [Claude Code](https:
 
 Instead of manually copying skill files between projects, you can install them as npm packages and let the manager handle the rest. Update a skill package once, run `npm update`, and all your projects get the improvements.
 
-**Why npm instead of Composer?**
-
-Most projects—even non-JavaScript ones like Laravel—have a `package.json` for frontend tooling. npm/Node.js is more ubiquitous than PHP/Composer, making this tool accessible to a wider range of projects.
-
 ## Installation
 
 The manager is typically installed automatically as a dependency of plugin packages. When you install a Claude plugin:
@@ -44,10 +40,10 @@ npm install @your-org/claude-your-plugin
 
 The manager will:
 1. Install itself (as a dependency of the plugin)
-2. Add a `postinstall` hook to your `package.json`
+2. Add a `prepare` hook to your `package.json`
 3. Copy the plugin's assets to `.claude/`
 
-That's it. Future `npm install` runs will automatically sync all plugins.
+That's it. Future `npm install` and `npm update` runs will automatically sync all plugins.
 
 ## How It Works
 
@@ -55,7 +51,7 @@ That's it. Future `npm install` runs will automatically sync all plugins.
 2. Plugins register themselves via their `postinstall` script
 3. The manager copies skills, commands, agents, and hooks to `.claude/`
 4. A manifest (`.claude/.plugins-manifest.json`) tracks what's installed
-5. On updates, old files are removed and fresh copies are made
+5. A `prepare` hook ensures plugins sync on both `npm install` and `npm update`
 6. Claude Code discovers them automatically
 
 **After installation, your project structure looks like:**
@@ -86,7 +82,7 @@ The manager provides a CLI tool for managing plugins:
 | Command | Description |
 |---------|-------------|
 | `npx claude-plugins list` | Show all installed plugins and their assets |
-| `npx claude-plugins install` | Sync all plugins from manifest (runs automatically on npm install) |
+| `npx claude-plugins install` | Sync all plugins from manifest (runs automatically) |
 | `npx claude-plugins add <package>` | Manually add a plugin |
 | `npx claude-plugins remove <package>` | Remove a plugin and its assets |
 
@@ -109,7 +105,7 @@ Want to create your own skill or command packages?
     "description": "Your custom skills for Claude Code",
     "license": "MIT",
     "dependencies": {
-        "claude-manager": "^1.0.0"
+        "claude-manager": "^2.0.0"
     },
     "scripts": {
         "postinstall": "claude-plugins add"
@@ -163,7 +159,7 @@ The manager tracks installed plugins in `.claude/.plugins-manifest.json`:
 ```
 
 This file should be committed to your repository. It ensures:
-- Plugins are synced correctly on `npm install`
+- Plugins are synced correctly on `npm install` and `npm update`
 - Old files are cleaned up when plugins are updated or removed
 - You can see what's installed at a glance
 
@@ -195,22 +191,24 @@ Verify the plugin's package.json has:
 - A `postinstall` script that calls `claude-plugins add`
 - A `skills/`, `commands/`, `agents/`, or `hooks/` directory with content
 
-### Postinstall hook not added
+### Prepare hook not added
 
-If your project's `package.json` doesn't have the postinstall hook, add it manually:
+If your project's `package.json` doesn't have the prepare hook, add it manually:
 
 ```json
 {
   "scripts": {
-    "postinstall": "claude-plugins install"
+    "prepare": "claude-plugins install"
   }
 }
 ```
 
+This ensures plugins sync on both `npm install` and `npm update`.
+
 ## Requirements
 
 - Node.js >= 18.0.0
-- npm, pnpm, or yarn
+- npm, pnpm, yarn, or bun
 
 ## Contributing
 

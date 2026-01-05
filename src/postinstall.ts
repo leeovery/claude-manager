@@ -2,13 +2,13 @@
  * Postinstall script for claude-manager
  *
  * This runs when claude-manager itself is installed as a dependency.
- * It injects the postinstall hook into the project's package.json
- * so that `claude-plugins install` runs on future npm installs.
+ * It injects a 'prepare' hook into the project's package.json
+ * so that `claude-plugins install` runs on both npm install AND npm update.
  */
 
 import { existsSync } from 'node:fs';
 import { join, resolve } from 'node:path';
-import { injectPostinstallHook } from './lib/hooks.js';
+import { injectPrepareHook } from './lib/hooks.js';
 
 function findProjectRoot(): string | null {
   // When running as postinstall of claude-manager,
@@ -47,10 +47,10 @@ function main() {
     return;
   }
 
-  // Inject the postinstall hook
-  if (injectPostinstallHook(projectRoot)) {
-    console.log('[claude-manager] Added postinstall hook to package.json');
-    console.log('[claude-manager] Future npm installs will sync Claude plugins automatically');
+  // Inject the prepare hook (runs on both npm install and npm update)
+  if (injectPrepareHook(projectRoot)) {
+    console.log('[claude-manager] Added prepare hook to package.json');
+    console.log('[claude-manager] Plugins will sync on npm install AND npm update');
   }
 }
 
