@@ -26,7 +26,8 @@ function findProjectRoot(): string {
   let dir = process.cwd();
 
   while (dir !== '/') {
-    if (existsSync(join(dir, 'package.json'))) {
+    // Skip node_modules directories - we want the actual project root
+    if (!dir.includes('node_modules') && existsSync(join(dir, 'package.json'))) {
       return dir;
     }
     dir = resolve(dir, '..');
