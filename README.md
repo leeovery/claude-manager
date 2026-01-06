@@ -150,7 +150,9 @@ The manager auto-discovers `skills/`, `commands/`, `agents/`, and `hooks/` direc
 
 | Package | Description |
 |---------|-------------|
-| Coming soon | Be the first to create a plugin! |
+| [@leeovery/claude-technical-workflows](https://github.com/leeovery/claude-technical-workflows) | Structured discussion & planning skills—research, discuss, specify, plan, implement, review |
+| [@leeovery/claude-laravel](https://github.com/leeovery/claude-laravel) | Opinionated Laravel development patterns and practices |
+| [@leeovery/claude-nuxt](https://github.com/leeovery/claude-nuxt) | Opinionated Nuxt 4 + Vue 3 development patterns |
 
 ## Manifest
 
