@@ -221,9 +221,10 @@ cp -r "$TEMP_DIR/skills-main/skills/skill-creator" "$PLUGIN_DIR/.claude/skills/"
 SKILL_FILE="$PLUGIN_DIR/.claude/skills/skill-creator/SKILL.md"
 if [ -f "$SKILL_FILE" ]; then
     # Add note after the packaging section
-    sed -i '/^### Step 5: Packaging a Skill$/a\
+    sed -i '' '/^### Step 5: Packaging a Skill$/a\
 \
-**Note for claude-manager packages:** When creating skills for claude-manager packages, you do NOT need to package the skill as a .skill file. The skills are copied directly into the package structure. Skip the packaging step and proceed directly to testing and iteration.' "$SKILL_FILE"
+**Note for claude-manager packages:** When creating skills for claude-manager packages, you do NOT need to package the skill as a .skill file. The skills are copied directly into the package structure. Skip the packaging step and proceed directly to testing and iteration.
+' "$SKILL_FILE"
 fi
 
 rm -rf "$TEMP_DIR"
