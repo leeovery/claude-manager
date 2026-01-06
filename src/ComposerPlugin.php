@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace LeeOvery\ClaudeManager;
 
 use Composer\Composer;
+use Composer\DependencyResolver\Operation\UninstallOperation;
 use Composer\EventDispatcher\EventSubscriberInterface;
+use Composer\Installer\PackageEvent;
 use Composer\IO\IOInterface;
 use Composer\Plugin\PluginInterface;
 use Composer\Script\Event;
@@ -21,6 +23,7 @@ class ComposerPlugin implements EventSubscriberInterface, PluginInterface
         return [
             'post-install-cmd' => 'installPlugins',
             'post-update-cmd' => 'installPlugins',
+            'pre-package-uninstall' => 'onPackageUninstall',
         ];
     }
 
@@ -38,6 +41,35 @@ class ComposerPlugin implements EventSubscriberInterface, PluginInterface
     public function uninstall(Composer $composer, IOInterface $io): void
     {
         // Not needed
+    }
+
+    public function onPackageUninstall(PackageEvent $event): void
+    {
+        $operation = $event->getOperation();
+        if (! $operation instanceof UninstallOperation) {
+            return;
+        }
+
+        $package = $operation->getPackage();
+        if ($package->getType() !== 'claude-plugin') {
+            return;
+        }
+
+        $vendorDir = $this->composer->getConfig()->get('vendor-dir');
+        $baseDir = dirname($vendorDir);
+        $claudeDir = $baseDir.'/.claude';
+        $composerJsonPath = $baseDir.'/composer.json';
+
+        $configuredMode = PluginManager::readModeFromComposerJson($composerJsonPath);
+        $manager = new PluginManager($claudeDir, $vendorDir, $this->io, $configuredMode);
+
+        $this->io->write('');
+        $this->io->write(sprintf('<info>Removing Claude plugin: %s</info>', $package->getName()));
+
+        $manager->uninstallPackage($package->getName());
+
+        $this->io->write('<info>✓ Plugin removed</info>');
+        $this->io->write('');
     }
 
     public function installPlugins(Event $event): void

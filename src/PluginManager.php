@@ -91,6 +91,40 @@ class PluginManager
         }
     }
 
+    public function uninstallPackage(string $packageName): void
+    {
+        $packagePath = $this->vendorDir.'/'.$packageName;
+        $types = ['skills', 'commands', 'agents', 'hooks'];
+
+        // Remove symlinks pointing to this package
+        $this->cleanupSymlinksForPackage($packageName);
+
+        // Remove copied files (scan vendor package to find what to remove)
+        foreach ($types as $type) {
+            $sourceDir = $packagePath.'/'.$type;
+            $targetDir = $this->claudeDir.'/'.$type;
+
+            if (! is_dir($sourceDir) || ! is_dir($targetDir)) {
+                continue;
+            }
+
+            $iterator = new DirectoryIterator($sourceDir);
+            foreach ($iterator as $item) {
+                if ($item->isDot() || $item->getFilename() === '.gitkeep') {
+                    continue;
+                }
+
+                $targetPath = $targetDir.'/'.$item->getFilename();
+                if ($this->files->exists($targetPath) && ! is_link($targetPath)) {
+                    $this->files->remove($targetPath);
+                }
+            }
+        }
+
+        // Remove gitignore entries
+        $this->removeGitignoreEntriesForPackage($packageName);
+    }
+
     public function installFromPackage(PackageInterface $package): void
     {
         $packagePath = $this->vendorDir.'/'.$package->getName();
