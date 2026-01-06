@@ -1,7 +1,7 @@
 {
   "name": "@leeovery/claude-manager",
   "version": "0.0.0-development",
-  "packageManager": "pnpm@9.15.4",
+  "packageManager": "pnpm@10.27.0",
   "description": "Plugin manager for Claude Code skills and commands",
   "type": "module",
   "main": "dist/index.js",
@@ -44,5 +44,8 @@
     "tsup": "^8.0.0",
     "typescript": "^5.0.0",
     "vitest": "^4.0.16"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": ["esbuild"]
   }
 }
