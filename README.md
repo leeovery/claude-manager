@@ -57,6 +57,16 @@ The manager will:
 
 That's it. Future `npm install` and `npm update` runs will automatically sync all plugins.
 
+### pnpm
+
+pnpm requires claude-manager as a direct dependency (it doesn't expose binaries from transitive dependencies):
+
+```bash
+pnpm add @leeovery/claude-manager @your-org/claude-your-plugin
+```
+
+pnpm also blocks postinstall scripts by default. After installing, run `pnpm approve-builds` to approve the packages, then `pnpm install` again.
+
 ## How It Works
 
 1. Plugin packages have `@leeovery/claude-manager` as a dependency
@@ -97,6 +107,8 @@ The manager provides a CLI tool for managing plugins:
 | `npx claude-plugins install` | Sync all plugins from manifest (runs automatically) |
 | `npx claude-plugins add <package>` | Manually add a plugin |
 | `npx claude-plugins remove <package>` | Remove a plugin and its assets |
+
+For pnpm users, use `pnpm exec claude-plugins` instead of `npx claude-plugins`.
 
 ## Creating Plugins
 
