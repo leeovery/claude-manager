@@ -1,6 +1,6 @@
 {
-  "name": "claude-manager",
-  "version": "2.0.0",
+  "name": "@leeovery/claude-manager",
+  "version": "0.0.0-development",
   "description": "Plugin manager for Claude Code skills and commands",
   "type": "module",
   "main": "dist/index.js",

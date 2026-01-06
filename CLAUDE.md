@@ -39,13 +39,13 @@ npx claude-plugins remove <package-name>
 **Entry Points:**
 
 - `cli.ts` - CLI commands (install, add, list, remove)
-- `postinstall.ts` - Runs when claude-manager is installed, injects prepare hook
+- `postinstall.ts` - Runs when @leeovery/claude-manager is installed, injects prepare hook
 - `index.ts` - Library exports for programmatic usage
 
 **Flow:**
 
 1. User installs a plugin: `npm install @foo/claude-plugin`
-2. Plugin has `claude-manager` as dependency, so manager is installed too
+2. Plugin has `@leeovery/claude-manager` as dependency, so manager is installed too
 3. Manager's `postinstall` runs, adds `prepare` hook to project's `package.json`
 4. Plugin's `postinstall` calls `claude-plugins add`
 5. Manager copies assets to `.claude/` and updates manifest
@@ -71,7 +71,7 @@ npx claude-plugins remove <package-name>
 ## Plugin Package Format
 
 Plugins should:
-- Have `claude-manager` as a dependency
+- Have `@leeovery/claude-manager` as a dependency
 - Add a postinstall script: `"postinstall": "claude-plugins add"`
 - Include asset directories:
   - `skills/` - directories containing skill definitions
@@ -86,7 +86,7 @@ Plugins should:
   "name": "@foo/claude-nuxt-plugin",
   "version": "1.0.0",
   "dependencies": {
-    "claude-manager": "^2.0.0"
+    "@leeovery/claude-manager": "^2.0.0"
   },
   "scripts": {
     "postinstall": "claude-plugins add"

@@ -49,7 +49,7 @@ cat > "$PLUGIN_DIR/package.json" <<EOF
     "postinstall": "claude-plugins add"
   },
   "dependencies": {
-    "claude-manager": "^2.0.0"
+    "@leeovery/claude-manager": "^2.0.0"
   },
   "files": [
     "skills",
@@ -123,7 +123,7 @@ That's it. The [Claude Manager](https://github.com/$VENDOR_NAME/claude-manager) 
 
 ## How It Works
 
-This package depends on [\`claude-manager\`](https://github.com/$VENDOR_NAME/claude-manager), which:
+This package depends on [\`@leeovery/claude-manager\`](https://github.com/$VENDOR_NAME/claude-manager), which:
 
 1. **Copies skills** into your project's \`.claude/skills/\` directory
 2. **Copies commands** into your project's \`.claude/commands/\` directory
@@ -149,7 +149,7 @@ You don't need to configure anything—just install and start coding.
 ## Requirements
 
 - Node.js 18+
-- [claude-manager](https://github.com/$VENDOR_NAME/claude-manager) ^2.0.0 (installed automatically)
+- [@leeovery/claude-manager](https://github.com/$VENDOR_NAME/claude-manager) ^2.0.0 (installed automatically)
 
 ## Contributing
 

@@ -59,7 +59,7 @@ That's it. Future `npm install` and `npm update` runs will automatically sync al
 
 ## How It Works
 
-1. Plugin packages have `claude-manager` as a dependency
+1. Plugin packages have `@leeovery/claude-manager` as a dependency
 2. Plugins register themselves via their `postinstall` script
 3. The manager copies skills, commands, agents, and hooks to `.claude/`
 4. A manifest (`.claude/.plugins-manifest.json`) tracks what's installed
@@ -104,7 +104,7 @@ Want to create your own skill or command packages?
 
 ### Plugin Requirements
 
-1. Have `claude-manager` as a dependency
+1. Have `@leeovery/claude-manager` as a dependency
 2. Add a `postinstall` script that calls `claude-plugins add`
 3. Include asset directories (`skills/`, `commands/`, `agents/`, `hooks/`)
 
@@ -117,7 +117,7 @@ Want to create your own skill or command packages?
     "description": "Your custom skills for Claude Code",
     "license": "MIT",
     "dependencies": {
-        "claude-manager": "^2.0.0"
+        "@leeovery/claude-manager": "^2.0.0"
     },
     "scripts": {
         "postinstall": "claude-plugins add"
@@ -199,7 +199,7 @@ ls -la .claude/hooks/
 ### Plugin not detected
 
 Verify the plugin's package.json has:
-- `claude-manager` as a dependency
+- `@leeovery/claude-manager` as a dependency
 - A `postinstall` script that calls `claude-plugins add`
 - A `skills/`, `commands/`, `agents/`, or `hooks/` directory with content
 
