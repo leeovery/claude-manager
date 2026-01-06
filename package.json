@@ -1,6 +1,7 @@
 {
   "name": "@leeovery/claude-manager",
   "version": "0.0.0-development",
+  "packageManager": "pnpm@9.15.4",
   "description": "Plugin manager for Claude Code skills and commands",
   "type": "module",
   "main": "dist/index.js",
