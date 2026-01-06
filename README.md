@@ -4,6 +4,12 @@
   <strong>Composer Plugin for Managing Claude Code Skills & Commands</strong>
 </p>
 
+> ⚠️ **Version 1.x is deprecated.** This version uses Composer/PHP.
+>
+> **Version 2.x plugins use npm.** Update your plugins to their v2 versions - they will automatically use the new npm-based manager.
+>
+> See the [main branch](https://github.com/leeovery/claude-manager) for the current npm-based version.
+
 <p align="center">
   <a href="#about">About</a> •
   <a href="#installation">Installation</a> •
