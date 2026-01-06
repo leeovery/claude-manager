@@ -1,0 +1,138 @@
+#!/usr/bin/env bash
+
+set -e
+
+if [ -z "$1" ]; then
+    echo "Usage: create-package <package-name>"
+    exit 1
+fi
+
+PACKAGE_NAME="$1"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PACKAGE_DIR="$SCRIPT_DIR/../$PACKAGE_NAME"
+SCOPE="@leeovery"
+
+if [ -d "$PACKAGE_DIR" ]; then
+    echo "Error: Directory $PACKAGE_DIR already exists"
+    exit 1
+fi
+
+echo "Creating package: $PACKAGE_NAME"
+
+# Create directory structure
+mkdir -p "$PACKAGE_DIR/skills"
+mkdir -p "$PACKAGE_DIR/commands"
+mkdir -p "$PACKAGE_DIR/agents"
+mkdir -p "$PACKAGE_DIR/hooks"
+mkdir -p "$PACKAGE_DIR/.claude/skills"
+
+touch "$PACKAGE_DIR/skills/.gitkeep"
+touch "$PACKAGE_DIR/commands/.gitkeep"
+touch "$PACKAGE_DIR/agents/.gitkeep"
+touch "$PACKAGE_DIR/hooks/.gitkeep"
+
+# Create package.json
+cat > "$PACKAGE_DIR/package.json" <<EOF
+{
+  "name": "$SCOPE/$PACKAGE_NAME",
+  "version": "0.0.1",
+  "description": "Claude Code plugin: $PACKAGE_NAME",
+  "license": "MIT",
+  "author": "Lee Overy <me@leeovery.com>",
+  "type": "module",
+  "scripts": {
+    "postinstall": "claude-plugins add"
+  },
+  "dependencies": {
+    "claude-manager": "^2.0.0"
+  },
+  "files": [
+    "skills",
+    "commands",
+    "agents",
+    "hooks"
+  ]
+}
+EOF
+
+# Create .gitignore
+cat > "$PACKAGE_DIR/.gitignore" <<EOF
+node_modules/
+.DS_Store
+.idea/
+.vscode/
+EOF
+
+# Create README.md
+cat > "$PACKAGE_DIR/README.md" <<EOF
+# $PACKAGE_NAME
+
+Claude Code plugin package.
+
+## Installation
+
+\`\`\`bash
+npm install $SCOPE/$PACKAGE_NAME
+\`\`\`
+
+## Usage
+
+This package provides skills and commands for Claude Code.
+
+### Skills
+
+Add skill directories to \`skills/\`. Each skill should be a directory containing:
+- \`SKILL.md\` - The skill definition
+- Any reference files the skill needs
+
+### Commands
+
+Add command files to \`commands/\`. Each command is a \`.md\` file.
+
+### Agents
+
+Add agent definitions to \`agents/\`. Each agent is a \`.md\` file.
+
+### Hooks
+
+Add hook configurations to \`hooks/\`.
+
+## Development
+
+After making changes to skills/commands, reinstall the package in your test project:
+
+\`\`\`bash
+npm install
+\`\`\`
+
+The \`postinstall\` script will automatically sync assets to \`.claude/\`.
+EOF
+
+# Download skill-creator
+echo "Installing skill-creator..."
+
+TEMP_DIR=$(mktemp -d)
+curl -sL "https://github.com/anthropics/skills/archive/refs/heads/main.tar.gz" | tar -xz -C "$TEMP_DIR"
+cp -r "$TEMP_DIR/skills-main/skill-creator" "$PACKAGE_DIR/.claude/skills/"
+
+# Patch SKILL.md to add note about not packaging for claude-manager
+SKILL_FILE="$PACKAGE_DIR/.claude/skills/skill-creator/SKILL.md"
+if [ -f "$SKILL_FILE" ]; then
+    # Add note after the packaging section
+    sed -i '/^### Step 5: Packaging a Skill$/a\
+\
+**Note for claude-manager packages:** When creating skills for claude-manager packages, you do NOT need to package the skill as a .skill file. The skills are copied directly into the package structure. Skip the packaging step and proceed directly to testing and iteration.' "$SKILL_FILE"
+fi
+
+rm -rf "$TEMP_DIR"
+
+# Initialize git
+cd "$PACKAGE_DIR"
+git init -q
+
+echo ""
+echo "✓ Package created successfully at: $PACKAGE_DIR"
+echo ""
+echo "Next steps:"
+echo "  cd ../$PACKAGE_NAME"
+echo "  npm install"
