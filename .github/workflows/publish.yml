@@ -5,12 +5,13 @@ on:
     tags:
       - 'v*'
 
+permissions:
+  id-token: write
+  contents: read
+
 jobs:
   publish:
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      id-token: write
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -19,6 +20,7 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '20'
+          registry-url: 'https://registry.npmjs.org'
 
       - name: Enable Corepack
         run: corepack enable
@@ -38,14 +40,6 @@ jobs:
 
       - name: Build
         run: pnpm run build
-
-      - name: Get OIDC token
-        id: oidc
-        run: |
-          OIDC_TOKEN=$(curl -sS -H "Authorization: Bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
-            "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=https://registry.npmjs.org" | jq -r .value)
-          echo "::add-mask::$OIDC_TOKEN"
-          npm config set //registry.npmjs.org/:_authToken "$OIDC_TOKEN"
 
       - name: Publish to npm
         run: npm publish --provenance --access public
