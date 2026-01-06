@@ -16,6 +16,18 @@
 
 ---
 
+## Versions
+
+| Version | Package Manager | Status | Branch |
+|---------|----------------|--------|--------|
+| 2.x | npm | **Active** | `main` |
+| 1.x | Composer | Deprecated | [`v1`](https://github.com/leeovery/claude-manager/tree/v1) |
+
+> **Note:** This package is installed automatically as a dependency of plugins.
+> To migrate from v1, update your plugins to their v2 versions (npm-based).
+
+---
+
 ## About
 
 Claude Manager is an npm package that automatically manages [Claude Code](https://claude.ai/code) skills, commands, agents, and hooks across your projects.
