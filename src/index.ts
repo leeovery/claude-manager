@@ -1,6 +1,29 @@
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { addPluginToProject, removePluginFromProject } from './lib/sync.js';
+
+/**
+ * Get package name from env var or package.json in cwd
+ */
+function getPackageName(): string | null {
+  // Try env var first (set by npm, sometimes by pnpm)
+  if (process.env.npm_package_name) {
+    return process.env.npm_package_name;
+  }
+
+  // Fall back to reading package.json in cwd (where postinstall runs)
+  const pkgPath = join(process.cwd(), 'package.json');
+  if (existsSync(pkgPath)) {
+    try {
+      const pkg = JSON.parse(readFileSync(pkgPath, 'utf-8'));
+      return pkg.name || null;
+    } catch {
+      return null;
+    }
+  }
+
+  return null;
+}
 
 // Main exports for programmatic usage
 export {
@@ -57,7 +80,7 @@ function findProjectRoot(): string {
  * Called from plugin's postinstall: node -e "require('@leeovery/claude-manager').add()"
  */
 export function add(): void {
-  const packageName = process.env.npm_package_name;
+  const packageName = getPackageName();
   if (!packageName) {
     console.error('[claude-manager] Could not determine package name');
     process.exit(1);
@@ -86,7 +109,7 @@ export function add(): void {
  * Called from plugin's preuninstall: node -e "require('@leeovery/claude-manager').remove()"
  */
 export function remove(): void {
-  const packageName = process.env.npm_package_name;
+  const packageName = getPackageName();
   if (!packageName) {
     console.error('[claude-manager] Could not determine package name');
     process.exit(1);
