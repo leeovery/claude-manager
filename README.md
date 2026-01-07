@@ -132,10 +132,13 @@ Want to create your own skill or command packages?
         "@leeovery/claude-manager": "^2.0.0"
     },
     "scripts": {
-        "postinstall": "claude-plugins add"
+        "postinstall": "claude-plugins add",
+        "preuninstall": "claude-plugins remove"
     }
 }
 ```
+
+The `postinstall` script copies assets when the plugin is installed. The `preuninstall` script cleans up when the plugin is removed.
 
 ### Plugin Structure
 

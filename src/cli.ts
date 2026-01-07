@@ -141,10 +141,18 @@ program
 
 program
   .command('remove')
-  .description('Remove a plugin and its assets')
-  .argument('<package>', 'Package name to remove')
-  .action((packageName: string) => {
+  .description('Remove a plugin and its assets (called from plugin preuninstall)')
+  .argument('[package]', 'Package name (auto-detected if run from preuninstall)')
+  .action((packageArg?: string) => {
     const projectRoot = findProjectRoot();
+    const packageName = packageArg || process.env.npm_package_name;
+
+    if (!packageName) {
+      console.error('Error: Could not determine package name.');
+      console.error('Please provide the package name as an argument: claude-plugins remove <package>');
+      process.exit(1);
+    }
+
     const result = removePluginFromProject(projectRoot, packageName);
 
     if (!result.success) {
