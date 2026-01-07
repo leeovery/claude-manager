@@ -95,10 +95,6 @@ program
 
     const result = addPluginToProject(projectRoot, packageName);
 
-    if (result.hookInjected) {
-      console.log('Added prepare hook to package.json');
-    }
-
     if (!result.success) {
       console.error(`Error: ${result.error}`);
       process.exit(1);

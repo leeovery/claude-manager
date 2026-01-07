@@ -44,37 +44,27 @@ Instead of manually copying skill files between projects, you can install them a
 
 ## Installation
 
-The manager is typically installed automatically as a dependency of plugin packages. When you install a Claude plugin:
+The manager is installed automatically as a dependency of plugin packages. When you install a Claude plugin:
 
 ```bash
 npm install @your-org/claude-your-plugin
+# or
+pnpm add @your-org/claude-your-plugin
+# or
+yarn add @your-org/claude-your-plugin
 ```
 
-The manager will:
-1. Install itself (as a dependency of the plugin)
-2. Add a `prepare` hook to your `package.json`
-3. Copy the plugin's assets to `.claude/`
+The plugin's postinstall script copies assets to `.claude/`. That's it.
 
-That's it. Future `npm install` and `npm update` runs will automatically sync all plugins.
-
-### pnpm
-
-pnpm requires claude-manager as a direct dependency (it doesn't expose binaries from transitive dependencies):
-
-```bash
-pnpm add @leeovery/claude-manager @your-org/claude-your-plugin
-```
-
-pnpm also blocks postinstall scripts by default. After installing, run `pnpm approve-builds` to approve the packages, then `pnpm install` again.
+**Note:** pnpm blocks postinstall scripts by default. After installing, run `pnpm approve-builds` to approve the packages, then `pnpm install` again.
 
 ## How It Works
 
 1. Plugin packages have `@leeovery/claude-manager` as a dependency
-2. Plugins register themselves via their `postinstall` script
-3. The manager copies skills, commands, agents, and hooks to `.claude/`
+2. Plugin's `postinstall` script copies assets to `.claude/`
+3. Plugin's `preuninstall` script cleans up when removed
 4. A manifest (`.claude/.plugins-manifest.json`) tracks what's installed
-5. A `prepare` hook ensures plugins sync on both `npm install` and `npm update`
-6. Claude Code discovers them automatically
+5. Claude Code discovers the assets automatically
 
 **After installation, your project structure looks like:**
 
@@ -108,8 +98,6 @@ The manager provides a CLI tool for managing plugins:
 | `npx claude-plugins add <package>` | Manually add a plugin |
 | `npx claude-plugins remove <package>` | Remove a plugin and its assets |
 
-For pnpm users, use `pnpm exec claude-plugins` instead of `npx claude-plugins`.
-
 ## Creating Plugins
 
 Want to create your own skill or command packages?
@@ -117,7 +105,7 @@ Want to create your own skill or command packages?
 ### Plugin Requirements
 
 1. Have `@leeovery/claude-manager` as a dependency
-2. Add a `postinstall` script that calls `claude-plugins add`
+2. Add `postinstall` and `preuninstall` scripts (see example below)
 3. Include asset directories (`skills/`, `commands/`, `agents/`, `hooks/`)
 
 ### Example package.json
@@ -132,13 +120,13 @@ Want to create your own skill or command packages?
         "@leeovery/claude-manager": "^2.0.0"
     },
     "scripts": {
-        "postinstall": "claude-plugins add",
-        "preuninstall": "claude-plugins remove"
+        "postinstall": "node -e \"require('@leeovery/claude-manager').add()\"",
+        "preuninstall": "node -e \"require('@leeovery/claude-manager').remove()\""
     }
 }
 ```
 
-The `postinstall` script copies assets when the plugin is installed. The `preuninstall` script cleans up when the plugin is removed.
+The `postinstall` script copies assets when the plugin is installed. The `preuninstall` script cleans up when the plugin is removed. Using `node -e` ensures compatibility with all package managers (npm, pnpm, yarn).
 
 ### Plugin Structure
 
@@ -188,7 +176,6 @@ The manager tracks installed plugins in `.claude/.plugins-manifest.json`:
 ```
 
 This file should be committed to your repository. It ensures:
-- Plugins are synced correctly on `npm install` and `npm update`
 - Old files are cleaned up when plugins are updated or removed
 - You can see what's installed at a glance
 
@@ -217,22 +204,8 @@ ls -la .claude/hooks/
 
 Verify the plugin's package.json has:
 - `@leeovery/claude-manager` as a dependency
-- A `postinstall` script that calls `claude-plugins add`
+- `postinstall` and `preuninstall` scripts using `node -e`
 - A `skills/`, `commands/`, `agents/`, or `hooks/` directory with content
-
-### Prepare hook not added
-
-If your project's `package.json` doesn't have the prepare hook, add it manually:
-
-```json
-{
-  "scripts": {
-    "prepare": "claude-plugins install"
-  }
-}
-```
-
-This ensures plugins sync on both `npm install` and `npm update`.
 
 ## Requirements
 

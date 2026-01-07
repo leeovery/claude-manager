@@ -219,31 +219,6 @@ describe('sync', () => {
       expect(existsSync(join(testDir, '.claude', 'skills', 'skill-v2'))).toBe(true);
     });
 
-    it('injects prepare hook into package.json', () => {
-      createMockPlugin('@test/plugin', '1.0.0', { skills: ['test'] });
-
-      const result = addPluginToProject(testDir, '@test/plugin');
-
-      expect(result.hookInjected).toBe(true);
-
-      const pkg = JSON.parse(readFileSync(join(testDir, 'package.json'), 'utf-8'));
-      expect(pkg.scripts?.prepare).toContain('claude-plugins install');
-    });
-
-    it('does not re-inject hook if already present', () => {
-      writeFileSync(
-        join(testDir, 'package.json'),
-        JSON.stringify({
-          name: 'test-project',
-          scripts: { prepare: 'claude-plugins install' },
-        })
-      );
-      createMockPlugin('@test/plugin', '1.0.0', { skills: ['test'] });
-
-      const result = addPluginToProject(testDir, '@test/plugin');
-
-      expect(result.hookInjected).toBe(false);
-    });
   });
 
   describe('listPlugins', () => {

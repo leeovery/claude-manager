@@ -14,7 +14,6 @@ import {
   hasAssets,
   getPackageVersion,
 } from './copier.js';
-import { injectPrepareHook } from './hooks.js';
 
 export interface SyncResult {
   success: boolean;
@@ -33,7 +32,6 @@ export interface AddResult {
   packageName: string;
   version?: string;
   files: string[];
-  hookInjected: boolean;
   error?: string;
 }
 
@@ -169,9 +167,6 @@ export function addPluginToProject(
   projectRoot: string,
   packageName: string
 ): AddResult {
-  // Ensure prepare hook is set up
-  const hookInjected = injectPrepareHook(projectRoot);
-
   const packagePath = findPluginInNodeModules(packageName, projectRoot);
 
   if (!packagePath) {
@@ -180,7 +175,6 @@ export function addPluginToProject(
       alreadyExists: false,
       packageName,
       files: [],
-      hookInjected,
       error: `Package ${packageName} not found in node_modules`,
     };
   }
@@ -191,7 +185,6 @@ export function addPluginToProject(
       alreadyExists: false,
       packageName,
       files: [],
-      hookInjected,
     };
   }
 
@@ -222,7 +215,6 @@ export function addPluginToProject(
     packageName,
     version: result.version,
     files: result.files,
-    hookInjected,
   };
 }
 

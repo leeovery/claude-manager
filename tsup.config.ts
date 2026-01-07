@@ -12,11 +12,10 @@ export default defineConfig([
     sourcemap: true,
     target: 'node18',
   },
-  // CLI and postinstall scripts (need shebang)
+  // CLI (needs shebang)
   {
     entry: {
       cli: 'src/cli.ts',
-      postinstall: 'src/postinstall.ts',
     },
     format: ['esm'],
     dts: false,
