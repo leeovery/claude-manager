@@ -58,20 +58,18 @@ The plugin's postinstall script copies assets to `.claude/`. That's it.
 
 ### pnpm Users
 
-pnpm v10+ blocks postinstall scripts by default. Use `--allow-build` to approve and run in one command:
+pnpm doesn't expose binaries from transitive dependencies, so install the manager directly alongside plugins:
 
 ```bash
-pnpm add -D --allow-build=@leeovery/claude-laravel @leeovery/claude-laravel
+pnpm add -D @leeovery/claude-manager @leeovery/claude-laravel
+pnpm approve-builds  # approve when prompted
+pnpm install         # triggers postinstall
 ```
 
-**Important:** pnpm's `preuninstall` hook is broken ([issue #3276](https://github.com/pnpm/pnpm/issues/3276)). To remove a plugin cleanly:
+**Removal:** pnpm's `preuninstall` hook is broken ([issue #3276](https://github.com/pnpm/pnpm/issues/3276)). Remove files first:
 
 ```bash
-# Remove files first (while manager still installed)
-npx claude-plugins remove @leeovery/claude-laravel
-
-# Then remove the package
-pnpm remove @leeovery/claude-laravel
+npx claude-plugins remove @leeovery/claude-laravel && pnpm remove @leeovery/claude-laravel
 ```
 
 ## How It Works
@@ -136,13 +134,13 @@ Want to create your own skill or command packages?
         "@leeovery/claude-manager": "^2.0.0"
     },
     "scripts": {
-        "postinstall": "node -e \"require('@leeovery/claude-manager').add()\"",
-        "preuninstall": "node -e \"require('@leeovery/claude-manager').remove()\""
+        "postinstall": "claude-plugins add",
+        "preuninstall": "claude-plugins remove"
     }
 }
 ```
 
-The `postinstall` script copies assets when the plugin is installed. The `preuninstall` script cleans up when the plugin is removed. Using `node -e` ensures compatibility with all package managers (npm, pnpm, yarn).
+The `postinstall` script copies assets when the plugin is installed. The `preuninstall` script cleans up when the plugin is removed.
 
 ### Plugin Structure
 
@@ -220,7 +218,7 @@ ls -la .claude/hooks/
 
 Verify the plugin's package.json has:
 - `@leeovery/claude-manager` as a dependency
-- `postinstall` and `preuninstall` scripts using `node -e`
+- `postinstall` and `preuninstall` scripts
 - A `skills/`, `commands/`, `agents/`, or `hooks/` directory with content
 
 ## Requirements
