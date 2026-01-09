@@ -63,7 +63,15 @@ export function removePlugin(projectRoot: string, packageName: string): void {
 
   delete manifest.plugins[packageName];
 
-  writeManifest(projectRoot, manifest);
+  // Delete manifest if no plugins left, otherwise update it
+  if (Object.keys(manifest.plugins).length === 0) {
+    const manifestPath = join(projectRoot, '.claude', MANIFEST_FILE);
+    if (existsSync(manifestPath)) {
+      rmSync(manifestPath);
+    }
+  } else {
+    writeManifest(projectRoot, manifest);
+  }
 }
 
 export function getPlugins(projectRoot: string): Record<string, PluginEntry> {
