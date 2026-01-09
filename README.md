@@ -47,11 +47,11 @@ Instead of manually copying skill files between projects, you can install them a
 The manager is installed automatically as a dependency of plugin packages. When you install a Claude plugin:
 
 ```bash
-npm install @your-org/claude-your-plugin
+npm install -D @your-org/claude-your-plugin
 # or
-pnpm add @your-org/claude-your-plugin
+pnpm add -D @your-org/claude-your-plugin
 # or
-yarn add @your-org/claude-your-plugin
+yarn add -D @your-org/claude-your-plugin
 ```
 
 The plugin's postinstall script copies assets to `.claude/`. That's it.
@@ -61,7 +61,7 @@ The plugin's postinstall script copies assets to `.claude/`. That's it.
 pnpm v10+ blocks postinstall scripts by default. Use `--allow-build` to approve and run in one command:
 
 ```bash
-pnpm add --allow-build=@leeovery/claude-laravel @leeovery/claude-laravel
+pnpm add -D --allow-build=@leeovery/claude-laravel @leeovery/claude-laravel
 ```
 
 **Important:** pnpm's `preuninstall` hook is broken ([issue #3276](https://github.com/pnpm/pnpm/issues/3276)). To remove a plugin cleanly:
