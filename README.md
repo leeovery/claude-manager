@@ -18,10 +18,10 @@
 
 ## Versions
 
-| Version | Package Manager | Status | Branch |
-|---------|----------------|--------|--------|
-| 2.x | npm | **Active** | `main` |
-| 1.x | Composer | Deprecated | [`v1`](https://github.com/leeovery/claude-manager/tree/v1) |
+| Version | Package Manager | Status     | Branch                                                     |
+|---------|-----------------|------------|------------------------------------------------------------|
+| 2.x     | npm             | **Active** | `main`                                                     |
+| 1.x     | Composer        | Deprecated | [`v1`](https://github.com/leeovery/claude-manager/tree/v1) |
 
 > **Note:** This package is installed automatically as a dependency of plugins.
 > To migrate from v1, update your plugins to their v2 versions (npm-based).
@@ -56,7 +56,23 @@ yarn add @your-org/claude-your-plugin
 
 The plugin's postinstall script copies assets to `.claude/`. That's it.
 
-**Note:** pnpm blocks postinstall scripts by default. After installing, run `pnpm approve-builds` to approve the packages, then `pnpm install` again.
+### pnpm Users
+
+pnpm v10+ blocks postinstall scripts by default. Use `--allow-build` to approve and run in one command:
+
+```bash
+pnpm add --allow-build=@leeovery/claude-laravel @leeovery/claude-laravel
+```
+
+**Important:** pnpm's `preuninstall` hook is broken ([issue #3276](https://github.com/pnpm/pnpm/issues/3276)). To remove a plugin cleanly:
+
+```bash
+# Remove files first (while manager still installed)
+npx claude-plugins remove @leeovery/claude-laravel
+
+# Then remove the package
+pnpm remove @leeovery/claude-laravel
+```
 
 ## How It Works
 
