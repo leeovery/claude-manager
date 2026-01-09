@@ -69,7 +69,7 @@ pnpm install         # triggers postinstall
 **Removal:** pnpm's `preuninstall` hook is broken ([issue #3276](https://github.com/pnpm/pnpm/issues/3276)). Remove files first:
 
 ```bash
-npx claude-plugins remove @leeovery/claude-laravel && pnpm remove @leeovery/claude-laravel
+npx claude-manager remove @leeovery/claude-laravel && pnpm remove @leeovery/claude-laravel
 ```
 
 ## How It Works
@@ -107,10 +107,10 @@ The manager provides a CLI tool for managing plugins:
 
 | Command | Description |
 |---------|-------------|
-| `npx claude-plugins list` | Show all installed plugins and their assets |
-| `npx claude-plugins install` | Sync all plugins from manifest (runs automatically) |
-| `npx claude-plugins add <package>` | Manually add a plugin |
-| `npx claude-plugins remove <package>` | Remove a plugin and its assets |
+| `npx claude-manager list` | Show all installed plugins and their assets |
+| `npx claude-manager install` | Sync all plugins from manifest (runs automatically) |
+| `npx claude-manager add <package>` | Manually add a plugin |
+| `npx claude-manager remove <package>` | Remove a plugin and its assets |
 
 ## Creating Plugins
 
@@ -134,8 +134,8 @@ Want to create your own skill or command packages?
         "@leeovery/claude-manager": "^2.0.0"
     },
     "scripts": {
-        "postinstall": "claude-plugins add",
-        "preuninstall": "claude-plugins remove"
+        "postinstall": "claude-manager add",
+        "preuninstall": "claude-manager remove"
     }
 }
 ```
@@ -200,7 +200,7 @@ This file should be committed to your repository. It ensures:
 Run the install command manually:
 
 ```bash
-npx claude-plugins install
+npx claude-manager install
 ```
 
 ### Skills not showing in Claude Code
