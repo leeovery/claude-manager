@@ -56,6 +56,14 @@ yarn add -D @your-org/claude-your-plugin
 
 The plugin's postinstall script copies assets to `.claude/`. That's it.
 
+### Removing Plugins
+
+Due to bugs in npm 7+ ([issue #3042](https://github.com/npm/cli/issues/3042)) and pnpm ([issue #3276](https://github.com/pnpm/pnpm/issues/3276)), preuninstall hooks don't run reliably. Remove files manually first:
+
+```bash
+npx claude-manager remove @leeovery/claude-laravel && npm rm @leeovery/claude-laravel
+```
+
 ### pnpm Users
 
 pnpm doesn't expose binaries from transitive dependencies, so install the manager directly alongside plugins:
@@ -66,19 +74,14 @@ pnpm approve-builds  # approve when prompted
 pnpm install         # triggers postinstall
 ```
 
-**Removal:** pnpm's `preuninstall` hook is broken ([issue #3276](https://github.com/pnpm/pnpm/issues/3276)). Remove files first:
-
-```bash
-npx claude-manager remove @leeovery/claude-laravel && pnpm remove @leeovery/claude-laravel
-```
-
 ## How It Works
 
 1. Plugin packages have `@leeovery/claude-manager` as a dependency
 2. Plugin's `postinstall` script copies assets to `.claude/`
-3. Plugin's `preuninstall` script cleans up when removed
-4. A manifest (`.claude/.plugins-manifest.json`) tracks what's installed
-5. Claude Code discovers the assets automatically
+3. A manifest (`.claude/.plugins-manifest.json`) tracks what's installed
+4. Claude Code discovers the assets automatically
+
+> **Note:** Plugins include `preuninstall` scripts but npm 7+ doesn't run them reliably ([issue #3042](https://github.com/npm/cli/issues/3042)). See [Removing Plugins](#removing-plugins) for the manual removal command.
 
 **After installation, your project structure looks like:**
 
