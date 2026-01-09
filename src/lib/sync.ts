@@ -6,6 +6,7 @@ import {
   writeManifest,
   cleanupManifestFiles,
   addPlugin,
+  removePlugin,
   type PluginEntry,
 } from './manifest.js';
 import {
@@ -251,9 +252,8 @@ export function removePluginFromProject(
     }
   }
 
-  // Update manifest
-  delete manifest.plugins[packageName];
-  writeManifest(projectRoot, manifest);
+  // Update manifest (will delete manifest file if no plugins left)
+  removePlugin(projectRoot, packageName);
 
   return {
     success: true,
