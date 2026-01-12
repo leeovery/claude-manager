@@ -23,6 +23,14 @@ function getVersion(): string {
 }
 
 function findProjectRoot(): string {
+  // INIT_CWD is set by npm/pnpm to the directory where the command was run
+  // This is critical during postinstall when process.cwd() points to the plugin's directory
+  const initCwd = process.env.INIT_CWD;
+  if (initCwd && existsSync(join(initCwd, 'package.json'))) {
+    return initCwd;
+  }
+
+  // Fallback: walk up from current directory, skipping node_modules
   let dir = process.cwd();
 
   while (dir !== '/') {
