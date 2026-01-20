@@ -1,8 +1,8 @@
-import { existsSync, mkdirSync, cpSync, readdirSync, statSync, readFileSync } from 'node:fs';
+import { existsSync, mkdirSync, cpSync, readdirSync, readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { dirname, join, basename } from 'node:path';
 
-const ASSET_DIRS = ['skills', 'commands', 'agents', 'hooks'] as const;
+const ASSET_DIRS = ['skills', 'commands', 'agents', 'hooks', 'scripts'] as const;
 type AssetDir = typeof ASSET_DIRS[number];
 
 interface CopyResult {
@@ -19,26 +19,9 @@ export function getPackageVersion(packagePath: string): string {
   }
 }
 
-function copyDirectory(src: string, dest: string): void {
-  cpSync(src, dest, { recursive: true });
-}
-
-function copyFile(src: string, dest: string): void {
-  const destDir = join(dest, '..');
-  if (!existsSync(destDir)) {
-    mkdirSync(destDir, { recursive: true });
-  }
-  cpSync(src, dest);
-}
-
-function isSkillDirectory(itemPath: string): boolean {
-  return statSync(itemPath).isDirectory();
-}
-
-function isAssetFile(itemPath: string): boolean {
-  const stat = statSync(itemPath);
+function isValidAsset(itemPath: string): boolean {
   const name = basename(itemPath);
-  return stat.isFile() && name !== '.gitkeep';
+  return name !== '.gitkeep';
 }
 
 export function copyPluginAssets(
@@ -69,18 +52,10 @@ export function copyPluginAssets(
       const itemPath = join(sourcePath, item);
       const targetPath = join(targetDir, item);
 
-      if (assetDir === 'skills') {
-        // Skills are directories
-        if (isSkillDirectory(itemPath)) {
-          copyDirectory(itemPath, targetPath);
-          copiedFiles.push(`${assetDir}/${item}`);
-        }
-      } else {
-        // Commands, agents, hooks are files
-        if (isAssetFile(itemPath)) {
-          copyFile(itemPath, targetPath);
-          copiedFiles.push(`${assetDir}/${item}`);
-        }
+      if (isValidAsset(itemPath)) {
+        // Copy files or directories recursively
+        cpSync(itemPath, targetPath, { recursive: true });
+        copiedFiles.push(`${assetDir}/${item}`);
       }
     }
   }
