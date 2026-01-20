@@ -14,6 +14,7 @@ import {
   findPluginInNodeModules,
   hasAssets,
   getPackageVersion,
+  getDiscoverableFiles,
 } from './copier.js';
 
 export interface SyncResult {
@@ -85,6 +86,15 @@ export function syncPlugins(
       if (currentVersion !== entry.version) {
         needsSync = true;
         reason = `${packageName} changed (${entry.version} → ${currentVersion})`;
+        break;
+      }
+
+      // Check if discoverable files differ from manifest (new asset dirs supported)
+      const discoverableFiles = getDiscoverableFiles(packagePath);
+      const manifestFiles = [...entry.files].sort();
+      if (JSON.stringify(discoverableFiles) !== JSON.stringify(manifestFiles)) {
+        needsSync = true;
+        reason = `${packageName} has new discoverable assets`;
         break;
       }
     }

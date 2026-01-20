@@ -98,3 +98,23 @@ export function hasAssets(packagePath: string): boolean {
   }
   return false;
 }
+
+export function getDiscoverableFiles(packagePath: string): string[] {
+  const files: string[] = [];
+
+  for (const assetDir of ASSET_DIRS) {
+    const sourcePath = join(packagePath, assetDir);
+
+    if (!existsSync(sourcePath)) {
+      continue;
+    }
+
+    const items = readdirSync(sourcePath).filter(f => f !== '.gitkeep');
+
+    for (const item of items) {
+      files.push(`${assetDir}/${item}`);
+    }
+  }
+
+  return files.sort();
+}
