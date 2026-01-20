@@ -2,7 +2,7 @@ import { existsSync, mkdirSync, cpSync, readdirSync, statSync, readFileSync } fr
 import { createRequire } from 'node:module';
 import { dirname, join, basename } from 'node:path';
 
-const ASSET_DIRS = ['skills', 'commands', 'agents', 'hooks'] as const;
+const ASSET_DIRS = ['skills', 'commands', 'agents', 'hooks', 'scripts'] as const;
 type AssetDir = typeof ASSET_DIRS[number];
 
 interface CopyResult {

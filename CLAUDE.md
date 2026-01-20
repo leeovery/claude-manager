@@ -33,7 +33,7 @@ npx claude-plugins remove <package-name>
 **Core Modules (in `src/lib/`):**
 
 - `manifest.ts` - Reads/writes `.claude/.plugins-manifest.json`, tracks installed plugins and their files
-- `copier.ts` - Copies assets from `node_modules` to `.claude/`, auto-discovers skills/commands/agents/hooks directories
+- `copier.ts` - Copies assets from `node_modules` to `.claude/`, auto-discovers skills/commands/agents/hooks/scripts directories
 - `hooks.ts` - Manages the `prepare` hook injection into project's `package.json` (runs on both `npm install` and `npm update`)
 
 **Entry Points:**
@@ -78,6 +78,7 @@ Plugins should:
   - `commands/` - `.md` files for slash commands
   - `agents/` - `.md` files for agent definitions
   - `hooks/` - hook configuration files
+  - `scripts/` - executable scripts that commands can reference via hooks in their front matter
 
 **Example plugin package.json:**
 

@@ -30,10 +30,10 @@
 
 ## About
 
-Claude Manager is an npm package that automatically manages [Claude Code](https://claude.ai/code) skills, commands, agents, and hooks across your projects.
+Claude Manager is an npm package that automatically manages [Claude Code](https://claude.ai/code) skills, commands, agents, hooks, and scripts across your projects.
 
 **What it does:**
-- Automatically installs skills, commands, agents, and hooks from plugin packages into your project's `.claude/` directory
+- Automatically installs skills, commands, agents, hooks, and scripts from plugin packages into your project's `.claude/` directory
 - Copies assets so they're committed to your repository and available immediately
 - Works with any project that has a `package.json` (Node.js, Laravel, Nuxt, etc.)
 - Provides CLI tools for listing and managing installed plugins
@@ -96,8 +96,10 @@ your-project/
 │   │   └── artisan-make.md
 │   ├── agents/
 │   │   └── code-reviewer.md
-│   └── hooks/
-│       └── pre-commit.sh
+│   ├── hooks/
+│   │   └── pre-commit.sh
+│   └── scripts/
+│       └── build-check.sh
 ├── node_modules/
 │   └── @your-org/
 │       └── claude-your-plugin/
@@ -123,7 +125,7 @@ Want to create your own skill or command packages?
 
 1. Have `@leeovery/claude-manager` as a dependency
 2. Add `postinstall` and `preuninstall` scripts (see example below)
-3. Include asset directories (`skills/`, `commands/`, `agents/`, `hooks/`)
+3. Include asset directories (`skills/`, `commands/`, `agents/`, `hooks/`, `scripts/`)
 
 ### Example package.json
 
@@ -161,10 +163,12 @@ your-plugin/
 │   └── agent-one.md
 ├── hooks/
 │   └── pre-commit.sh
+├── scripts/
+│   └── build-check.sh
 └── package.json
 ```
 
-The manager auto-discovers `skills/`, `commands/`, `agents/`, and `hooks/` directories—no additional configuration needed.
+The manager auto-discovers `skills/`, `commands/`, `agents/`, `hooks/`, and `scripts/` directories—no additional configuration needed.
 
 ## Available Plugins
 
@@ -215,6 +219,7 @@ ls -la .claude/skills/
 ls -la .claude/commands/
 ls -la .claude/agents/
 ls -la .claude/hooks/
+ls -la .claude/scripts/
 ```
 
 ### Plugin not detected
@@ -222,7 +227,7 @@ ls -la .claude/hooks/
 Verify the plugin's package.json has:
 - `@leeovery/claude-manager` as a dependency
 - `postinstall` and `preuninstall` scripts
-- A `skills/`, `commands/`, `agents/`, or `hooks/` directory with content
+- A `skills/`, `commands/`, `agents/`, `hooks/`, or `scripts/` directory with content
 
 ## Requirements
 
