@@ -168,7 +168,7 @@ your-plugin/
 └── package.json
 ```
 
-The manager auto-discovers `skills/`, `commands/`, `agents/`, `hooks/`, and `scripts/` directories—no additional configuration needed.
+The manager auto-discovers `skills/`, `commands/`, `agents/`, `hooks/`, and `scripts/` directories—no additional configuration needed. All asset directories support nested subdirectories.
 
 ## Available Plugins
 

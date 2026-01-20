@@ -73,12 +73,12 @@ npx claude-plugins remove <package-name>
 Plugins should:
 - Have `@leeovery/claude-manager` as a dependency
 - Add a postinstall script: `"postinstall": "claude-plugins add"`
-- Include asset directories:
-  - `skills/` - directories containing skill definitions
+- Include asset directories (all support nested subdirectories):
+  - `skills/` - skill definitions (directories with skill.md)
   - `commands/` - `.md` files for slash commands
   - `agents/` - `.md` files for agent definitions
   - `hooks/` - hook configuration files
-  - `scripts/` - executable scripts that commands can reference via hooks in their front matter
+  - `scripts/` - executable scripts for command hooks
 
 **Example plugin package.json:**
 
